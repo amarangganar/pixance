@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { TransactionSchema, type Transaction } from "../schemas";
+import { isInMonth } from "../utils/format";
 import { getSheets, getSpreadsheetId } from "./client";
 
 // ─── Row serialization (exported for testing) ─────────────────────────────────
@@ -62,10 +63,7 @@ export async function getAllTransactions(): Promise<Transaction[]> {
 
 export async function getMonthlyTransactions(month: number, year: number): Promise<Transaction[]> {
   const all = await getAllTransactions();
-  return all.filter((tx) => {
-    const d = new Date(tx.timestamp);
-    return d.getUTCMonth() + 1 === month && d.getUTCFullYear() === year;
-  });
+  return all.filter((tx) => isInMonth(tx.timestamp, month, year));
 }
 
 export async function getMonthlySummary(

@@ -1,4 +1,4 @@
-import type { Pocket } from "../schemas";
+import type { Pocket, Transaction } from "../schemas";
 import {
   addPocket,
   archivePocket,
@@ -7,7 +7,10 @@ import {
   renamePocket,
   restorePocket,
 } from "../sheets/pockets";
-import { sendMessage } from "./telegram";
+import { getAllTransactions, getRecentTransactions } from "../sheets/transactions";
+import { getCurrentMonthYear, isInMonth } from "../utils/format";
+import { formatHistory, formatReport, type ReportData } from "./format";
+import { deleteMessage, sendMessage } from "./telegram";
 
 // ─── Argument parsing ─────────────────────────────────────────────────────────
 
@@ -71,6 +74,10 @@ export async function handleCommand(chatId: number, text: string): Promise<void>
   switch (command) {
     case "/start":
       return handleStart(chatId);
+    case "/report":
+      return handleReport(chatId, args);
+    case "/history":
+      return handleHistory(chatId, args);
     case "/pockets":
       return handlePockets(chatId, args);
     case "/addpocket":
@@ -84,6 +91,91 @@ export async function handleCommand(chatId: number, text: string): Promise<void>
     default:
       await sendMessage(chatId, "Unknown command. Use /start to see available commands.");
   }
+}
+
+// ─── /report ──────────────────────────────────────────────────────────────────
+
+async function handleReport(chatId: number, args: string[]): Promise<void> {
+  const lang: "id" | "en" = args[0]?.toLowerCase() === "id" ? "id" : "en";
+  const { month, year } = getCurrentMonthYear();
+  const placeholder = lang === "id" ? "⏳ Menyiapkan laporan..." : "⏳ Preparing report...";
+  const { message_id: placeholderId } = await sendMessage(chatId, placeholder);
+
+  let txs: Transaction[];
+  try {
+    txs = await getAllTransactions();
+  } catch (err) {
+    await deleteMessage(chatId, placeholderId).catch(() => {});
+    await sendMessage(chatId, `❌ Failed to fetch transactions: ${String(err)}`);
+    return;
+  }
+
+  const monthly = txs.filter((tx) => isInMonth(tx.timestamp, month, year));
+
+  const data: ReportData = {
+    month,
+    year,
+    totalIncome: 0,
+    totalExpense: 0,
+    totalTransferred: 0,
+    categoryBreakdown: [],
+    pocketBreakdown: [],
+  };
+
+  const catMap = new Map<string, { total: number; count: number }>();
+  const pocketMap = new Map<string, { totalIn: number; totalOut: number }>();
+  const pocket = (name: string) => {
+    if (!pocketMap.has(name)) pocketMap.set(name, { totalIn: 0, totalOut: 0 });
+    return pocketMap.get(name)!;
+  };
+
+  for (const tx of monthly) {
+    if (tx.type === "income") {
+      data.totalIncome += tx.amount;
+      const cat = catMap.get(tx.category) ?? { total: 0, count: 0 };
+      cat.total += tx.amount;
+      cat.count += 1;
+      catMap.set(tx.category, cat);
+      pocket(tx.pocket).totalIn += tx.amount;
+    } else if (tx.type === "expense") {
+      data.totalExpense += tx.amount;
+      const cat = catMap.get(tx.category) ?? { total: 0, count: 0 };
+      cat.total += tx.amount;
+      cat.count += 1;
+      catMap.set(tx.category, cat);
+      pocket(tx.pocket).totalOut += tx.amount;
+    } else {
+      data.totalTransferred += tx.amount;
+      pocket(tx.from_pocket).totalOut += tx.amount;
+      pocket(tx.to_pocket).totalIn += tx.amount;
+    }
+  }
+
+  data.categoryBreakdown = [...catMap.entries()].map(([category, { total, count }]) => ({ category, total, count }));
+  data.pocketBreakdown = [...pocketMap.entries()].map(([p, { totalIn, totalOut }]) => ({ pocket: p, totalIn, totalOut }));
+
+  await deleteMessage(chatId, placeholderId).catch(() => {});
+  await sendMessage(chatId, formatReport(data, lang), { parse_mode: "Markdown" });
+}
+
+// ─── /history ─────────────────────────────────────────────────────────────────
+
+async function handleHistory(chatId: number, args: string[]): Promise<void> {
+  const lang: "id" | "en" = args[0]?.toLowerCase() === "id" ? "id" : "en";
+  const placeholder = lang === "id" ? "⏳ Mengambil riwayat..." : "⏳ Fetching history...";
+  const { message_id: placeholderId } = await sendMessage(chatId, placeholder);
+
+  let txs: Transaction[];
+  try {
+    txs = await getRecentTransactions(10);
+  } catch (err) {
+    await deleteMessage(chatId, placeholderId).catch(() => {});
+    await sendMessage(chatId, `❌ Failed to fetch transactions: ${String(err)}`);
+    return;
+  }
+
+  await deleteMessage(chatId, placeholderId).catch(() => {});
+  await sendMessage(chatId, formatHistory(txs, lang), { parse_mode: "Markdown" });
 }
 
 // ─── /start ───────────────────────────────────────────────────────────────────

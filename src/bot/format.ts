@@ -1,5 +1,5 @@
 import type { Transaction } from "../schemas";
-import { formatCurrency, formatDate } from "../utils/format";
+import { formatCurrency, formatDate, formatMonthYear, progressBar } from "../utils/format";
 
 export function formatConfirmation(tx: Transaction, lang: "id" | "en"): string {
   const amount = formatCurrency(tx.amount);
@@ -21,4 +21,103 @@ export function formatConfirmation(tx: Transaction, lang: "id" | "en"): string {
   const header = lang === "id" ? "✅ Pengeluaran dicatat" : "✅ Expense recorded";
   const note = tx.note ? ` · ${tx.note}` : "";
   return `${header}\n💸 ${amount} · ${tx.category}${note} · ${date}`;
+}
+
+// ─── Report data type ─────────────────────────────────────────────────────────
+
+export interface ReportData {
+  month: number;
+  year: number;
+  totalIncome: number;
+  totalExpense: number;
+  totalTransferred: number;
+  categoryBreakdown: { category: string; total: number; count: number }[];
+  pocketBreakdown: { pocket: string; totalIn: number; totalOut: number }[];
+}
+
+// ─── /report formatter ────────────────────────────────────────────────────────
+
+export function formatReport(data: ReportData, lang: "id" | "en" = "en"): string {
+  const { month, year, totalIncome, totalExpense, totalTransferred, categoryBreakdown, pocketBreakdown } = data;
+  const monthYear = formatMonthYear(month, year, lang);
+  const header = lang === "en" ? `📊 *${monthYear} Report*` : `📊 *Laporan ${monthYear}*`;
+
+  const t = {
+    empty: lang === "id"
+      ? "Belum ada transaksi bulan ini. Yuk mulai catat keuanganmu! 💪"
+      : "No transactions this month. Start logging your finances! 💪",
+    income: lang === "id" ? "Pemasukan" : "Income",
+    expense: lang === "id" ? "Pengeluaran" : "Expense",
+    transfer: "Transfer",
+    categories: lang === "id" ? "*Kategori:*" : "*Categories:*",
+    perPocket: "*Per Pocket:*",
+  };
+
+  if (totalIncome === 0 && totalExpense === 0 && totalTransferred === 0) {
+    return `${header}\n\n${t.empty}`;
+  }
+
+  const lines: string[] = [header, ""];
+
+  lines.push(`💰 ${t.income}: ${formatCurrency(totalIncome)}`);
+  lines.push(`💸 ${t.expense}: ${formatCurrency(totalExpense)}`);
+  lines.push(`🔄 ${t.transfer}: ${formatCurrency(totalTransferred)}`);
+
+  if (totalIncome > 0) {
+    lines.push("");
+    lines.push(progressBar(totalExpense, totalIncome));
+  }
+
+  if (categoryBreakdown.length > 0) {
+    lines.push("");
+    lines.push(t.categories);
+    for (const { category, total, count } of categoryBreakdown) {
+      lines.push(`• ${category} — ${formatCurrency(total)} (${count}x)`);
+    }
+  }
+
+  if (pocketBreakdown.length > 0) {
+    lines.push("");
+    lines.push(t.perPocket);
+    for (const { pocket, totalIn, totalOut } of pocketBreakdown) {
+      lines.push(`• ${pocket}: in ${formatCurrency(totalIn)} / out ${formatCurrency(totalOut)}`);
+      if (totalIn > 0) {
+        lines.push(`  ${progressBar(totalOut, totalIn)}`);
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ─── /history formatter ───────────────────────────────────────────────────────
+
+export function formatHistory(txs: Transaction[], lang: "id" | "en" = "en"): string {
+  if (txs.length === 0) {
+    return lang === "id"
+      ? "Belum ada transaksi. Catat transaksi pertamamu! 🌱"
+      : "No transactions yet. Log your first one! 🌱";
+  }
+
+  const header = lang === "id" ? "📋 *10 Transaksi Terakhir*" : "📋 *Last 10 Transactions*";
+  const lines: string[] = [header, ""];
+
+  txs.forEach((tx, i) => {
+    const n = i + 1;
+    const amount = formatCurrency(tx.amount);
+    const date = formatDate(tx.timestamp);
+
+    if (tx.type === "transfer") {
+      const note = tx.note ? ` · ${tx.note}` : "";
+      lines.push(`${n}. 🔄 ${amount} · ${tx.from_pocket} → ${tx.to_pocket}${note} · ${date}`);
+    } else if (tx.type === "income") {
+      const note = tx.note ? ` · ${tx.note}` : "";
+      lines.push(`${n}. 💰 ${amount} · ${tx.category}${note} · ${date}`);
+    } else {
+      const note = tx.note ? ` · ${tx.note}` : "";
+      lines.push(`${n}. 💸 ${amount} · ${tx.category}${note} · ${date}`);
+    }
+  });
+
+  return lines.join("\n");
 }

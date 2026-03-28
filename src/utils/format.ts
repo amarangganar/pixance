@@ -35,8 +35,8 @@ export function formatDate(isoString: string): string {
   }).format(new Date(isoString));
 }
 
-export function formatMonthYear(month: number, year: number): string {
-  return new Intl.DateTimeFormat("id-ID", {
+export function formatMonthYear(month: number, year: number, lang: "id" | "en" = "id"): string {
+  return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "id-ID", {
     month: "long",
     year: "numeric",
   }).format(new Date(year, month - 1, 1));
