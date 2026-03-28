@@ -5,8 +5,8 @@ import type { FinancialContext } from "../services/analytics";
 // Empty/numbers-only/punctuation-only → defaults to "id".
 
 const ID_PATTERNS = [
-  /\brb\b/,
-  /\bjt\b/,
+  /\d+rb\b/,
+  /\d+jt\b/,
   /\bribu\b/,
   /\bjuta\b/,
   /\baku\b/,

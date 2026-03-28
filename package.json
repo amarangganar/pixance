@@ -2,6 +2,7 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
+    "test": "bun test",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",
     "check": "biome check --write ./src"
