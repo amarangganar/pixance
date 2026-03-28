@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Environment — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Docs — kept out of version control
+.docs/
+
+# Claude Code project files
+.claude/
+
+# OS
+.DS_Store

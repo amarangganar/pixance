@@ -1,0 +1,40 @@
+// Thin typed wrapper around the Telegram Bot API. Plain fetch, no library.
+// Non-2xx responses are logged and thrown — callers handle user-facing errors.
+
+async function apiCall<T>(method: string, body: Record<string, unknown>): Promise<T> {
+  const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/${method}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`[telegram] ${method} failed (${res.status}):`, text);
+    throw new Error(`Telegram API error: ${method} → ${res.status}`);
+  }
+
+  const data = (await res.json()) as { ok: boolean; result: T };
+  return data.result;
+}
+
+export async function sendMessage(
+  chatId: number,
+  text: string,
+  options?: { parse_mode?: "Markdown" | "HTML" }
+): Promise<{ message_id: number }> {
+  return apiCall("sendMessage", { chat_id: chatId, text, ...options });
+}
+
+export async function deleteMessage(chatId: number, messageId: number): Promise<void> {
+  await apiCall("deleteMessage", { chat_id: chatId, message_id: messageId });
+}
+
+export async function sendChatAction(chatId: number, action: "typing"): Promise<void> {
+  await apiCall("sendChatAction", { chat_id: chatId, action });
+}
+
+export async function setWebhook(url: string): Promise<void> {
+  await apiCall("setWebhook", { url });
+}
