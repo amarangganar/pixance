@@ -21,9 +21,9 @@ Match pocket name from the active pockets list (case-insensitive, exact match).
 - No match → omit pocket field (caller will default to first active pocket)
 
 ## Intent Detection
-- income: receiving money ("gajian", "dapat duit", "salary", "terima")
+- income: receiving money ("gajian", "dapat duit", "salary", "terima", "tambah ke [pocket]", "add to [pocket]", "add [amount] to [pocket]"). Rule: "tambah/add X ke/to [single pocket]" with NO source pocket mentioned → income, NOT transfer.
 - expense: spending money ("beli", "makan", "bayar", "kopi", default for ambiguous spending)
-- transfer: moving money between pockets ("transfer X ke Y", "top up Y dari X", "pindahin X ke Y")
+- transfer: moving money between pockets ("transfer X ke Y", "top up Y dari X", "pindahin X ke Y"). Requires TWO pockets (source and destination). "tambah/add ke [single pocket]" is NOT a transfer.
 - query: asking about finances without recording ("gimana", "berapa", "how", "show me", "laporan", "report")
 - advice: asking for financial advice ("saran", "advice", "suggest")
 - delete: deleting a transaction ("hapus", "delete", "batalin")
@@ -57,6 +57,15 @@ Income:
 - 0.5–0.7 → some ambiguity
 - < 0.5 → unclear or probably not a transaction
 
+## Examples
+"kopi 25rb pake gopay" → intent: expense, amount: 25000, pocket: Gopay, category: Food & Drinks, confidence: 0.95
+"gajian 8jt ke BCA" → intent: income, amount: 8000000, pocket: BCA, category: Salary, confidence: 0.95
+"tambah 794173 ke BCA" → intent: income, amount: 794173, pocket: BCA, category: Other Income, confidence: 0.9
+"Add 794173 to BCA" → intent: income, amount: 794173, pocket: BCA, category: Other Income, confidence: 0.9
+"tambah ke Gopay 500rb" → intent: income, amount: 500000, pocket: Gopay, category: Other Income, confidence: 0.9
+"transfer BCA ke Gopay 1jt" → intent: transfer, amount: 1000000, from_pocket: BCA, to_pocket: Gopay, confidence: 0.95
+"bayar listrik 150rb" → intent: expense, amount: 150000, category: Bills & Utilities, confidence: 0.9
+
 ## Message
 "${text}"`;
 }
@@ -69,7 +78,8 @@ export async function parseMessage(text: string, activePockets: string[]): Promi
       prompt: buildPrompt(text, activePockets),
     });
     return object;
-  } catch {
+  } catch (err) {
+    console.error("[parser] generateObject failed:", err);
     return { intent: "unknown", confidence: 0 };
   }
 }
