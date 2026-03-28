@@ -1,4 +1,6 @@
 import type { Pocket, Transaction } from "../schemas";
+import { getAdvice, getQuickSummary } from "../ai/advisor";
+import { buildFinancialContext } from "../services/analytics";
 import {
   addPocket,
   archivePocket,
@@ -90,6 +92,8 @@ export async function handleCommand(chatId: number, text: string): Promise<void>
       return handleRestorePocket(chatId, args);
     case "/delete":
       return handleDelete(chatId, args);
+    case "/advice":
+      return handleAdvice(chatId, args);
     default:
       await sendMessage(chatId, "Unknown command. Use /start to see available commands.");
   }
@@ -307,6 +311,25 @@ async function handleRestorePocket(chatId: number, args: string[]): Promise<void
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to restore pocket";
     await sendMessage(chatId, `❌ ${msg}`);
+  }
+}
+
+// ─── /advice ──────────────────────────────────────────────────────────────────
+
+async function handleAdvice(chatId: number, args: string[]): Promise<void> {
+  const lang: "id" | "en" = args[0]?.toLowerCase() === "id" ? "id" : "en";
+  const { month, year } = getCurrentMonthYear();
+  const placeholder = lang === "id" ? "⏳ Menganalisis keuangan kamu..." : "⏳ Analyzing your finances...";
+  const { message_id: placeholderId } = await sendMessage(chatId, placeholder);
+
+  try {
+    const ctx = await buildFinancialContext(lang, month, year);
+    const advice = await getQuickSummary(ctx);
+    await deleteMessage(chatId, placeholderId).catch(() => {});
+    await sendMessage(chatId, advice);
+  } catch (err) {
+    await deleteMessage(chatId, placeholderId).catch(() => {});
+    await sendMessage(chatId, `❌ Failed to fetch financial analysis: ${String(err)}`);
   }
 }
 

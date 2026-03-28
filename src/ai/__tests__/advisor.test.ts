@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { detectLanguage } from "../advisor";
 
 describe("detectLanguage", () => {
@@ -33,5 +33,67 @@ describe("detectLanguage", () => {
 
   test("defaults to id for punctuation only", () => {
     expect(detectLanguage("!!!")).toBe("id");
+  });
+});
+
+// ─── getAdvice / getQuickSummary — AI failure fallback ────────────────────────
+
+mock.module("ai", () => ({
+  generateText: mock(async () => {
+    throw new Error("AI service unavailable");
+  }),
+  gateway: mock(() => "mock-model"),
+}));
+
+const { getAdvice, getQuickSummary } = await import("../advisor");
+
+const SPARSE_CTX = {
+  currency: "IDR",
+  lang: "en" as const,
+  month: 3,
+  year: 2026,
+  totalIncome: 0,
+  totalExpense: 0,
+  totalTransferred: 0,
+  surplus: 0,
+  monthlyTransactionCount: 0,
+  categoryBreakdown: [],
+  pocketBreakdown: [],
+  recentTransactions: [],
+};
+
+describe("getAdvice — AI failure fallback", () => {
+  test("returns non-empty string in English when AI throws", async () => {
+    const result = await getAdvice("how is my spending?", { ...SPARSE_CTX, lang: "en" });
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("returns non-empty string in Indonesian when AI throws", async () => {
+    const result = await getAdvice("gimana kondisi keuangan aku?", { ...SPARSE_CTX, lang: "id" });
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("does not throw even when AI fails", async () => {
+    await expect(getAdvice("test", SPARSE_CTX)).resolves.toBeDefined();
+  });
+});
+
+describe("getQuickSummary — AI failure fallback", () => {
+  test("returns non-empty string in English when AI throws", async () => {
+    const result = await getQuickSummary({ ...SPARSE_CTX, lang: "en" });
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("returns non-empty string in Indonesian when AI throws", async () => {
+    const result = await getQuickSummary({ ...SPARSE_CTX, lang: "id" });
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("does not throw even when AI fails", async () => {
+    await expect(getQuickSummary(SPARSE_CTX)).resolves.toBeDefined();
   });
 });

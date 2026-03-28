@@ -1,9 +1,10 @@
-import { detectLanguage } from "../ai/advisor";
+import { detectLanguage, getAdvice } from "../ai/advisor";
 import { parseMessage } from "../ai/parser";
+import { buildFinancialContext } from "../services/analytics";
 import { buildAndSaveTransaction } from "../services/transaction";
 import { getActivePocketNames } from "../sheets/pockets";
 import { deleteTransaction, findMatchingTransactions, getLastNDaysTransactions } from "../sheets/transactions";
-import { formatCurrency, formatDate } from "../utils/format";
+import { getCurrentMonthYear, formatCurrency, formatDate } from "../utils/format";
 import { deleteMessage, sendMessage } from "./telegram";
 import { formatConfirmation, formatDeleteCandidates, formatDeleteConfirmation } from "./format";
 
@@ -133,6 +134,14 @@ export async function handleMessage(chatId: number, text: string): Promise<void>
       const candidates = matches.map((tx) => ({ id: tx.id, summary: summarizeTx(tx) }));
       pendingDeletes.set(chatId, { candidates, lang });
       await sendMessage(chatId, formatDeleteCandidates(candidates, lang), {});
+      return;
+    }
+
+    if (parsed.intent === "query" || parsed.intent === "advice") {
+      const { month, year } = getCurrentMonthYear();
+      const ctx = await buildFinancialContext(lang, month, year);
+      const advice = await getAdvice(text, ctx);
+      await sendMessage(chatId, advice);
       return;
     }
 
