@@ -90,6 +90,44 @@ export function formatReport(data: ReportData, lang: "id" | "en" = "en"): string
   return lines.join("\n");
 }
 
+// ─── Delete formatters ────────────────────────────────────────────────────────
+
+export function formatDeleteConfirmation(tx: Transaction, lang: "id" | "en"): string {
+  const amount = formatCurrency(tx.amount);
+  const date = formatDate(tx.timestamp);
+
+  if (tx.type === "transfer") {
+    const header = lang === "id" ? "✅ Transfer dihapus" : "✅ Transfer deleted";
+    const note = tx.note ? ` · ${tx.note}` : "";
+    return `${header}\n🔄 ${amount} · ${tx.from_pocket} → ${tx.to_pocket}${note} · ${date}`;
+  }
+
+  if (tx.type === "income") {
+    const header = lang === "id" ? "✅ Pemasukan dihapus" : "✅ Income deleted";
+    const note = tx.note ? ` · ${tx.note}` : "";
+    return `${header}\n💰 ${amount} · ${tx.category}${note} · ${date}`;
+  }
+
+  const header = lang === "id" ? "✅ Pengeluaran dihapus" : "✅ Expense deleted";
+  const note = tx.note ? ` · ${tx.note}` : "";
+  return `${header}\n💸 ${amount} · ${tx.category}${note} · ${date}`;
+}
+
+export function formatDeleteCandidates(
+  candidates: Array<{ id: string; summary: string }>,
+  lang: "id" | "en"
+): string {
+  const header =
+    lang === "id"
+      ? 'Beberapa transaksi ditemukan. Balas dengan nomor untuk menghapus, atau "cancel":'
+      : 'Multiple matches found. Reply with a number to delete, or "cancel":';
+  const lines = [header, ""];
+  candidates.forEach((c, i) => {
+    lines.push(`${i + 1}. ${c.summary}`);
+  });
+  return lines.join("\n");
+}
+
 // ─── /history formatter ───────────────────────────────────────────────────────
 
 export function formatHistory(txs: Transaction[], lang: "id" | "en" = "en"): string {

@@ -51,6 +51,13 @@ Income:
 - Hadiah, kado, gift, bonus → "Gift"
 - Anything else income → "Other Income"
 
+## Note Field
+Always populate 'note' with a short description of the specific item or purpose — this is the most important label for identifying the transaction later.
+- Extract the item/purpose word(s) from the message: "kopi", "makan siang", "jabatan", "listrik", "gojek ke kantor"
+- Pocket information ("pake gopay", "ke BCA") does NOT replace the note — extract both independently
+- If the message is only an amount with no description (e.g. "5k"), leave note empty
+- Keep it short: 1–4 words max
+
 ## Confidence
 - 0.9+ → all fields clearly identified
 - 0.7–0.9 → most fields clear, minor ambiguity
@@ -58,13 +65,15 @@ Income:
 - < 0.5 → unclear or probably not a transaction
 
 ## Examples
-"kopi 25rb pake gopay" → intent: expense, amount: 25000, pocket: Gopay, category: Food & Drinks, confidence: 0.95
-"gajian 8jt ke BCA" → intent: income, amount: 8000000, pocket: BCA, category: Salary, confidence: 0.95
+"kopi 25rb pake gopay" → intent: expense, amount: 25000, note: kopi, pocket: Gopay, category: Food & Drinks, confidence: 0.95
+"beli jabatan 5k" → intent: expense, amount: 5000, note: jabatan, category: Other, confidence: 0.9
+"beli jabatan 5k pake jago" → intent: expense, amount: 5000, note: jabatan, pocket: Jago, category: Other, confidence: 0.95
+"gajian 8jt ke BCA" → intent: income, amount: 8000000, note: gajian, pocket: BCA, category: Salary, confidence: 0.95
 "tambah 794173 ke BCA" → intent: income, amount: 794173, pocket: BCA, category: Other Income, confidence: 0.9
 "Add 794173 to BCA" → intent: income, amount: 794173, pocket: BCA, category: Other Income, confidence: 0.9
 "tambah ke Gopay 500rb" → intent: income, amount: 500000, pocket: Gopay, category: Other Income, confidence: 0.9
 "transfer BCA ke Gopay 1jt" → intent: transfer, amount: 1000000, from_pocket: BCA, to_pocket: Gopay, confidence: 0.95
-"bayar listrik 150rb" → intent: expense, amount: 150000, category: Bills & Utilities, confidence: 0.9
+"bayar listrik 150rb" → intent: expense, amount: 150000, note: listrik, category: Bills & Utilities, confidence: 0.9
 
 ## Message
 "${text}"`;

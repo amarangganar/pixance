@@ -7,9 +7,9 @@ import {
   renamePocket,
   restorePocket,
 } from "../sheets/pockets";
-import { getAllTransactions, getRecentTransactions } from "../sheets/transactions";
+import { deleteTransaction, getAllTransactions, getRecentTransactions } from "../sheets/transactions";
 import { getCurrentMonthYear, isInMonth } from "../utils/format";
-import { formatHistory, formatReport, type ReportData } from "./format";
+import { formatDeleteConfirmation, formatHistory, formatReport, type ReportData } from "./format";
 import { deleteMessage, sendMessage } from "./telegram";
 
 // ─── Argument parsing ─────────────────────────────────────────────────────────
@@ -88,6 +88,8 @@ export async function handleCommand(chatId: number, text: string): Promise<void>
       return handleArchivePocket(chatId, args);
     case "/restorepocket":
       return handleRestorePocket(chatId, args);
+    case "/delete":
+      return handleDelete(chatId, args);
     default:
       await sendMessage(chatId, "Unknown command. Use /start to see available commands.");
   }
@@ -305,5 +307,43 @@ async function handleRestorePocket(chatId: number, args: string[]): Promise<void
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to restore pocket";
     await sendMessage(chatId, `❌ ${msg}`);
+  }
+}
+
+// ─── /delete ──────────────────────────────────────────────────────────────────
+
+async function handleDelete(chatId: number, args: string[]): Promise<void> {
+  const nRaw = args[0];
+  const n = nRaw ? parseInt(nRaw, 10) : NaN;
+  if (Number.isNaN(n) || n < 1) {
+    await sendMessage(chatId, "❌ Usage: /delete [n] — use /history to see available entries.");
+    return;
+  }
+
+  const { message_id: placeholderId } = await sendMessage(chatId, "⏳ Deleting...");
+
+  let txs: Transaction[];
+  try {
+    txs = await getRecentTransactions(10);
+  } catch (err) {
+    await deleteMessage(chatId, placeholderId).catch(() => {});
+    await sendMessage(chatId, `❌ Failed to fetch transactions: ${String(err)}`);
+    return;
+  }
+
+  if (n > txs.length) {
+    await deleteMessage(chatId, placeholderId).catch(() => {});
+    await sendMessage(chatId, "❌ Invalid number. Use /history to see available entries.");
+    return;
+  }
+
+  const tx = txs[n - 1];
+  try {
+    await deleteTransaction(tx.id);
+    await deleteMessage(chatId, placeholderId).catch(() => {});
+    await sendMessage(chatId, formatDeleteConfirmation(tx, "en"), { parse_mode: "Markdown" });
+  } catch (err) {
+    await deleteMessage(chatId, placeholderId).catch(() => {});
+    await sendMessage(chatId, `❌ Failed to delete: ${String(err)}`);
   }
 }

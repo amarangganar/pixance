@@ -129,6 +129,61 @@ export async function getRecentTransactions(limit: number): Promise<Transaction[
   return all.slice(-limit).reverse();
 }
 
-export async function deleteTransaction(_id: string): Promise<boolean> {
-  throw new Error("Not implemented — Phase 6");
+export async function getLastNDaysTransactions(days: number): Promise<Transaction[]> {
+  const all = await getAllTransactions();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return all.filter((tx) => new Date(tx.timestamp) >= cutoff);
+}
+
+export function findMatchingTransactions(
+  txs: Transaction[],
+  amount: number | undefined,
+  note: string | undefined
+): Transaction[] {
+  if (!amount && !note) return [];
+  return txs.filter((tx) => {
+    const amountOk = amount !== undefined ? tx.amount === amount : true;
+    const noteOk = note ? tx.note.toLowerCase().includes(note.toLowerCase()) : true;
+    return amountOk && noteOk;
+  });
+}
+
+export async function deleteTransaction(id: string): Promise<boolean> {
+  const sheets = getSheets();
+  const spreadsheetId = getSpreadsheetId();
+
+  const idsRes = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "transactions!A:A",
+    valueRenderOption: "UNFORMATTED_VALUE",
+  });
+  const ids = (idsRes.data.values ?? []) as string[][];
+  const rowIndex = ids.findIndex((row, i) => i > 0 && row[0] === id);
+  if (rowIndex === -1) return false;
+
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+  const sheet = spreadsheet.data.sheets?.find((s) => s.properties?.title === "transactions");
+  if (!sheet?.properties?.sheetId === undefined) return false;
+  const sheetId = sheet!.properties!.sheetId!;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1,
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  return true;
 }
