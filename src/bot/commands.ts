@@ -13,6 +13,7 @@ import { deleteTransaction, getAllTransactions, getRecentTransactions } from "..
 import { getCurrentMonthYear, isInMonth } from "../utils/format";
 import { formatDeleteConfirmation, formatHistory, formatReport, type ReportData } from "./format";
 import { deleteMessage, sendMessage } from "./telegram";
+import { stripMarkdown, toTelegramMarkdownV2 } from "../utils/format";
 
 // ─── Argument parsing ─────────────────────────────────────────────────────────
 
@@ -326,7 +327,11 @@ async function handleAdvice(chatId: number, args: string[]): Promise<void> {
     const ctx = await buildFinancialContext(lang, month, year);
     const advice = await getQuickSummary(ctx);
     await deleteMessage(chatId, placeholderId).catch(() => {});
-    await sendMessage(chatId, advice);
+    try {
+      await sendMessage(chatId, toTelegramMarkdownV2(advice), { parse_mode: "MarkdownV2" });
+    } catch {
+      await sendMessage(chatId, stripMarkdown(advice));
+    }
   } catch (err) {
     await deleteMessage(chatId, placeholderId).catch(() => {});
     await sendMessage(chatId, `❌ Failed to fetch financial analysis: ${String(err)}`);

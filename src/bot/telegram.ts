@@ -22,7 +22,7 @@ async function apiCall<T>(method: string, body: Record<string, unknown>): Promis
 export async function sendMessage(
   chatId: number,
   text: string,
-  options?: { parse_mode?: "Markdown" | "HTML" }
+  options?: { parse_mode?: "Markdown" | "MarkdownV2" | "HTML" }
 ): Promise<{ message_id: number }> {
   return apiCall("sendMessage", { chat_id: chatId, text, ...options });
 }

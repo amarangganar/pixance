@@ -4,7 +4,7 @@ import { buildFinancialContext } from "../services/analytics";
 import { buildAndSaveTransaction } from "../services/transaction";
 import { getActivePocketNames } from "../sheets/pockets";
 import { deleteTransaction, findMatchingTransactions, getLastNDaysTransactions } from "../sheets/transactions";
-import { getCurrentMonthYear, formatCurrency, formatDate } from "../utils/format";
+import { getCurrentMonthYear, formatCurrency, formatDate, toTelegramMarkdownV2, stripMarkdown } from "../utils/format";
 import { deleteMessage, sendMessage } from "./telegram";
 import { formatConfirmation, formatDeleteCandidates, formatDeleteConfirmation } from "./format";
 
@@ -116,7 +116,7 @@ export async function handleMessage(chatId: number, text: string): Promise<void>
         return;
       }
       const recentTxs = await getLastNDaysTransactions(7);
-      const matches = findMatchingTransactions(recentTxs, parsed.amount, parsed.note);
+      const matches = findMatchingTransactions(recentTxs, parsed.amount ?? undefined, parsed.note ?? undefined);
       if (matches.length === 0) {
         const msg =
           lang === "id"
@@ -141,7 +141,11 @@ export async function handleMessage(chatId: number, text: string): Promise<void>
       const { month, year } = getCurrentMonthYear();
       const ctx = await buildFinancialContext(lang, month, year);
       const advice = await getAdvice(text, ctx);
-      await sendMessage(chatId, advice);
+      try {
+        await sendMessage(chatId, toTelegramMarkdownV2(advice), { parse_mode: "MarkdownV2" });
+      } catch {
+        await sendMessage(chatId, stripMarkdown(advice));
+      }
       return;
     }
 

@@ -1,5 +1,27 @@
-import { gateway, generateObject } from "ai";
-import { ParsedMessageSchema, type ParsedMessage } from "../schemas";
+import { gateway, generateObject, jsonSchema } from "ai";
+import { ALL_CATEGORIES, ParsedMessageSchema, type ParsedMessage } from "../schemas";
+
+// Hand-crafted JSON schema with ALL fields in `required` and nullable
+// fields expressed via anyOf. Required by OpenAI's strict structured-output
+// mode, which rejects schemas where any property is absent from `required`.
+const PARSER_SCHEMA = jsonSchema<ParsedMessage>({
+  type: "object",
+  properties: {
+    intent: {
+      type: "string",
+      enum: ["income", "expense", "transfer", "query", "advice", "delete", "unknown"],
+    },
+    amount: { anyOf: [{ type: "number", exclusiveMinimum: 0 }, { type: "null" }] },
+    category: { anyOf: [{ type: "string", enum: [...ALL_CATEGORIES] }, { type: "null" }] },
+    note: { anyOf: [{ type: "string" }, { type: "null" }] },
+    pocket: { anyOf: [{ type: "string" }, { type: "null" }] },
+    from_pocket: { anyOf: [{ type: "string" }, { type: "null" }] },
+    to_pocket: { anyOf: [{ type: "string" }, { type: "null" }] },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+  },
+  required: ["intent", "amount", "category", "note", "pocket", "from_pocket", "to_pocket", "confidence"],
+  additionalProperties: false,
+});
 
 function buildPrompt(text: string, activePockets: string[]): string {
   const pocketList = activePockets.length > 0 ? activePockets.join(", ") : "Main";
@@ -83,12 +105,13 @@ export async function parseMessage(text: string, activePockets: string[]): Promi
   try {
     const { object } = await generateObject({
       model: gateway(process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5"),
-      schema: ParsedMessageSchema,
+      schema: PARSER_SCHEMA,
       prompt: buildPrompt(text, activePockets),
     });
-    return object;
+    const result = ParsedMessageSchema.safeParse(object);
+    return result.success ? result.data : { intent: "unknown", confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
   } catch (err) {
     console.error("[parser] generateObject failed:", err);
-    return { intent: "unknown", confidence: 0 };
+    return { intent: "unknown", confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
   }
 }

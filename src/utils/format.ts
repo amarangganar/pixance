@@ -70,6 +70,67 @@ export function isInMonth(isoString: string, month: number, year: number): boole
   return txMonth === month && txYear === year;
 }
 
+// ─── Telegram MarkdownV2 converter ───────────────────────────────────────────
+// Converts standard Markdown (as produced by AI models) to Telegram MarkdownV2.
+// - **bold** → *bold*
+// - _italic_ / *italic* → _italic_
+// - ~~strikethrough~~ → ~strikethrough~
+// - `code` / ```blocks``` → unchanged
+// - All MarkdownV2 special characters in plain text are backslash-escaped.
+
+const MDV2_SPECIAL = /([_*[\]()~`>#+\-=|{}.!\\])/g;
+
+function escapeV2(s: string): string {
+  return s.replace(MDV2_SPECIAL, "\\$1");
+}
+
+const MDV2_FORMAT =
+  /(\*\*[\s\S]+?\*\*|~~[\s\S]+?~~|```[\s\S]+?```|`[^`\n]+`|_[^_\n]+?_|\*[^*\n]+?\*)/g;
+
+export function toTelegramMarkdownV2(text: string): string {
+  const result: string[] = [];
+  let lastIndex = 0;
+
+  MDV2_FORMAT.lastIndex = 0;
+  for (const match of text.matchAll(MDV2_FORMAT)) {
+    result.push(escapeV2(text.slice(lastIndex, match.index)));
+
+    const span = match[0];
+    if (span.startsWith("**")) {
+      result.push(`*${escapeV2(span.slice(2, -2))}*`);
+    } else if (span.startsWith("~~")) {
+      result.push(`~${escapeV2(span.slice(2, -2))}~`);
+    } else if (span.startsWith("```")) {
+      result.push(span);
+    } else if (span.startsWith("`")) {
+      result.push(span);
+    } else if (span.startsWith("_")) {
+      result.push(`_${escapeV2(span.slice(1, -1))}_`);
+    } else if (span.startsWith("*")) {
+      result.push(`_${escapeV2(span.slice(1, -1))}_`);
+    }
+
+    lastIndex = match.index! + span.length;
+  }
+
+  result.push(escapeV2(text.slice(lastIndex)));
+  return result.join("");
+}
+
+// ─── Strip Markdown ───────────────────────────────────────────────────────────
+// Removes all common Markdown markers, leaving clean readable plain text.
+// Used as a fallback when MarkdownV2 rendering fails.
+
+export function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]+?```/g, (m) => m.slice(3, -3))  // ```block``` → block
+    .replace(/\*\*([\s\S]+?)\*\*/g, "$1")                // **bold** → bold
+    .replace(/~~([\s\S]+?)~~/g, "$1")                    // ~~strike~~ → strike
+    .replace(/_([\s\S]+?)_/g, "$1")                      // _italic_ → italic
+    .replace(/\*([\s\S]+?)\*/g, "$1")                    // *italic* → italic
+    .replace(/`([^`]+)`/g, "$1");                        // `code` → code
+}
+
 // ─── Progress bar ─────────────────────────────────────────────────────────────
 
 export function progressBar(used: number, total: number, length = 10): string {

@@ -114,7 +114,7 @@ Your job:
 - Acknowledge what's working well if anything is
 - End with 1–3 concrete, specific action steps tailored to THIS data — not generic platitudes like "spend less"
 - Be direct, be real, skip the fluff
-- Max 250 words
+- You may use Markdown formatting where it genuinely helps readability (**bold**, _italic_, ~~strikethrough~~, • bullets) — but don't force it
 
 ${langInstruction}`;
 }

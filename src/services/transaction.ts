@@ -2,7 +2,7 @@ import type { ParsedMessage, Transaction } from "../schemas";
 import { appendTransaction } from "../sheets/transactions";
 
 // Pocket matching: exact case-insensitive; no match → first active pocket.
-function resolvePocket(name: string | undefined, activePockets: string[]): string {
+function resolvePocket(name: string | null | undefined, activePockets: string[]): string {
   if (name) {
     const match = activePockets.find((p) => p.toLowerCase() === name.toLowerCase());
     if (match) return match;
