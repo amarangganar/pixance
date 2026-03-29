@@ -1,5 +1,6 @@
 import type { Pocket, Transaction } from "../schemas";
 import { getAdvice, getQuickSummary } from "../ai/advisor";
+import type { Logger } from "../lib/logger";
 import { buildFinancialContext } from "../services/analytics";
 import {
   addPocket,
@@ -67,7 +68,7 @@ export function formatPocketList(pockets: Pocket[], showAll: boolean): string {
 
 // ─── Command router ───────────────────────────────────────────────────────────
 
-export async function handleCommand(chatId: number, text: string): Promise<void> {
+export async function handleCommand(chatId: number, text: string, log: Logger): Promise<void> {
   // Extract base command (e.g. "/pockets all" → "/pockets", args = ["all"])
   const parts = text.trim().split(/\s+/);
   const command = parts[0].toLowerCase();
@@ -76,25 +77,25 @@ export async function handleCommand(chatId: number, text: string): Promise<void>
 
   switch (command) {
     case "/start":
-      return handleStart(chatId);
+      return handleStart(chatId, log);
     case "/report":
-      return handleReport(chatId, args);
+      return handleReport(chatId, args, log);
     case "/history":
-      return handleHistory(chatId, args);
+      return handleHistory(chatId, args, log);
     case "/pockets":
-      return handlePockets(chatId, args);
+      return handlePockets(chatId, args, log);
     case "/addpocket":
-      return handleAddPocket(chatId, args);
+      return handleAddPocket(chatId, args, log);
     case "/renamepocket":
-      return handleRenamePocket(chatId, args);
+      return handleRenamePocket(chatId, args, log);
     case "/archivepocket":
-      return handleArchivePocket(chatId, args);
+      return handleArchivePocket(chatId, args, log);
     case "/restorepocket":
-      return handleRestorePocket(chatId, args);
+      return handleRestorePocket(chatId, args, log);
     case "/delete":
-      return handleDelete(chatId, args);
+      return handleDelete(chatId, args, log);
     case "/advice":
-      return handleAdvice(chatId, args);
+      return handleAdvice(chatId, args, log);
     default:
       await sendMessage(chatId, "Unknown command. Use /start to see available commands.");
   }
@@ -102,7 +103,7 @@ export async function handleCommand(chatId: number, text: string): Promise<void>
 
 // ─── /report ──────────────────────────────────────────────────────────────────
 
-async function handleReport(chatId: number, args: string[]): Promise<void> {
+async function handleReport(chatId: number, args: string[], log: Logger): Promise<void> {
   const lang: "id" | "en" = args[0]?.toLowerCase() === "id" ? "id" : "en";
   const { month, year } = getCurrentMonthYear();
   const placeholder = lang === "id" ? "⏳ Menyiapkan laporan..." : "⏳ Preparing report...";
@@ -112,6 +113,7 @@ async function handleReport(chatId: number, args: string[]): Promise<void> {
   try {
     txs = await getAllTransactions();
   } catch (err) {
+    log.error("handler failed", err, { command: "/report" });
     await deleteMessage(chatId, placeholderId).catch(() => {});
     await sendMessage(chatId, `❌ Failed to fetch transactions: ${String(err)}`);
     return;
@@ -167,7 +169,7 @@ async function handleReport(chatId: number, args: string[]): Promise<void> {
 
 // ─── /history ─────────────────────────────────────────────────────────────────
 
-async function handleHistory(chatId: number, args: string[]): Promise<void> {
+async function handleHistory(chatId: number, args: string[], log: Logger): Promise<void> {
   const lang: "id" | "en" = args[0]?.toLowerCase() === "id" ? "id" : "en";
   const placeholder = lang === "id" ? "⏳ Mengambil riwayat..." : "⏳ Fetching history...";
   const { message_id: placeholderId } = await sendMessage(chatId, placeholder);
@@ -176,6 +178,7 @@ async function handleHistory(chatId: number, args: string[]): Promise<void> {
   try {
     txs = await getRecentTransactions(10);
   } catch (err) {
+    log.error("handler failed", err, { command: "/history" });
     await deleteMessage(chatId, placeholderId).catch(() => {});
     await sendMessage(chatId, `❌ Failed to fetch transactions: ${String(err)}`);
     return;
@@ -187,9 +190,14 @@ async function handleHistory(chatId: number, args: string[]): Promise<void> {
 
 // ─── /start ───────────────────────────────────────────────────────────────────
 
-async function handleStart(chatId: number): Promise<void> {
-  const pockets = await getActivePocketNames();
-  const pocketList = pockets.length > 0 ? pockets.join(", ") : "Main";
+async function handleStart(chatId: number, log: Logger): Promise<void> {
+  let pocketList = "Main";
+  try {
+    const pockets = await getActivePocketNames();
+    if (pockets.length > 0) pocketList = pockets.join(", ");
+  } catch (err) {
+    log.error("handler failed", err, { command: "/start", step: "getActivePocketNames" });
+  }
 
   const text = [
     "🧚 *Pixance* is live!",
@@ -223,17 +231,22 @@ async function handleStart(chatId: number): Promise<void> {
 
 // ─── /pockets ─────────────────────────────────────────────────────────────────
 
-async function handlePockets(chatId: number, args: string[]): Promise<void> {
+async function handlePockets(chatId: number, args: string[], log: Logger): Promise<void> {
   const showAll = args[0]?.toLowerCase() === "all";
-  const pockets = await getAllPockets();
-  const list = formatPocketList(pockets, showAll);
-  const header = showAll ? "*All pockets:*" : "*Active pockets:*";
-  await sendMessage(chatId, `${header}\n${list}`, { parse_mode: "Markdown" });
+  try {
+    const pockets = await getAllPockets();
+    const list = formatPocketList(pockets, showAll);
+    const header = showAll ? "*All pockets:*" : "*Active pockets:*";
+    await sendMessage(chatId, `${header}\n${list}`, { parse_mode: "Markdown" });
+  } catch (err) {
+    log.error("handler failed", err, { command: "/pockets" });
+    await sendMessage(chatId, `❌ Failed to fetch pockets: ${String(err)}`);
+  }
 }
 
 // ─── /addpocket ───────────────────────────────────────────────────────────────
 
-async function handleAddPocket(chatId: number, args: string[]): Promise<void> {
+async function handleAddPocket(chatId: number, args: string[], log: Logger): Promise<void> {
   const name = args[0]?.trim();
   if (!name) {
     await sendMessage(chatId, "❌ Usage: /addpocket [name]");
@@ -247,6 +260,7 @@ async function handleAddPocket(chatId: number, args: string[]): Promise<void> {
     await addPocket(name);
     await sendMessage(chatId, `✅ Pocket "${name}" added`);
   } catch (err) {
+    log.error("handler failed", err, { command: "/addpocket", name });
     const msg = err instanceof Error ? err.message : "Failed to add pocket";
     await sendMessage(chatId, `❌ ${msg}`);
   }
@@ -254,7 +268,7 @@ async function handleAddPocket(chatId: number, args: string[]): Promise<void> {
 
 // ─── /renamepocket ────────────────────────────────────────────────────────────
 
-async function handleRenamePocket(chatId: number, args: string[]): Promise<void> {
+async function handleRenamePocket(chatId: number, args: string[], log: Logger): Promise<void> {
   const oldName = args[0]?.trim();
   const newName = args[1]?.trim();
   if (!oldName || !newName) {
@@ -273,6 +287,7 @@ async function handleRenamePocket(chatId: number, args: string[]): Promise<void>
       { parse_mode: "Markdown" },
     );
   } catch (err) {
+    log.error("handler failed", err, { command: "/renamepocket", oldName, newName });
     const msg = err instanceof Error ? err.message : "Failed to rename pocket";
     await sendMessage(chatId, `❌ ${msg}`);
   }
@@ -280,7 +295,7 @@ async function handleRenamePocket(chatId: number, args: string[]): Promise<void>
 
 // ─── /archivepocket ──────────────────────────────────────────────────────────
 
-async function handleArchivePocket(chatId: number, args: string[]): Promise<void> {
+async function handleArchivePocket(chatId: number, args: string[], log: Logger): Promise<void> {
   const name = args[0]?.trim();
   if (!name) {
     await sendMessage(chatId, "❌ Usage: /archivepocket [name]");
@@ -293,6 +308,7 @@ async function handleArchivePocket(chatId: number, args: string[]): Promise<void
       `✅ Pocket "${name}" archived. To undo: /restorepocket ${name}`,
     );
   } catch (err) {
+    log.error("handler failed", err, { command: "/archivepocket", name });
     const msg = err instanceof Error ? err.message : "Failed to archive pocket";
     await sendMessage(chatId, `❌ ${msg}`);
   }
@@ -300,7 +316,7 @@ async function handleArchivePocket(chatId: number, args: string[]): Promise<void
 
 // ─── /restorepocket ──────────────────────────────────────────────────────────
 
-async function handleRestorePocket(chatId: number, args: string[]): Promise<void> {
+async function handleRestorePocket(chatId: number, args: string[], log: Logger): Promise<void> {
   const name = args[0]?.trim();
   if (!name) {
     await sendMessage(chatId, "❌ Usage: /restorepocket [name]");
@@ -310,6 +326,7 @@ async function handleRestorePocket(chatId: number, args: string[]): Promise<void
     await restorePocket(name);
     await sendMessage(chatId, `✅ Pocket "${name}" restored`);
   } catch (err) {
+    log.error("handler failed", err, { command: "/restorepocket", name });
     const msg = err instanceof Error ? err.message : "Failed to restore pocket";
     await sendMessage(chatId, `❌ ${msg}`);
   }
@@ -317,7 +334,7 @@ async function handleRestorePocket(chatId: number, args: string[]): Promise<void
 
 // ─── /advice ──────────────────────────────────────────────────────────────────
 
-async function handleAdvice(chatId: number, args: string[]): Promise<void> {
+async function handleAdvice(chatId: number, args: string[], log: Logger): Promise<void> {
   const lang: "id" | "en" = args[0]?.toLowerCase() === "id" ? "id" : "en";
   const { month, year } = getCurrentMonthYear();
   const placeholder = lang === "id" ? "⏳ Menganalisis keuangan kamu..." : "⏳ Analyzing your finances...";
@@ -333,6 +350,7 @@ async function handleAdvice(chatId: number, args: string[]): Promise<void> {
       await sendMessage(chatId, stripMarkdown(advice));
     }
   } catch (err) {
+    log.error("handler failed", err, { command: "/advice" });
     await deleteMessage(chatId, placeholderId).catch(() => {});
     await sendMessage(chatId, `❌ Failed to fetch financial analysis: ${String(err)}`);
   }
@@ -340,7 +358,7 @@ async function handleAdvice(chatId: number, args: string[]): Promise<void> {
 
 // ─── /delete ──────────────────────────────────────────────────────────────────
 
-async function handleDelete(chatId: number, args: string[]): Promise<void> {
+async function handleDelete(chatId: number, args: string[], log: Logger): Promise<void> {
   const nRaw = args[0];
   const n = nRaw ? parseInt(nRaw, 10) : NaN;
   if (Number.isNaN(n) || n < 1) {
@@ -354,6 +372,7 @@ async function handleDelete(chatId: number, args: string[]): Promise<void> {
   try {
     txs = await getRecentTransactions(10);
   } catch (err) {
+    log.error("handler failed", err, { command: "/delete", step: "fetch" });
     await deleteMessage(chatId, placeholderId).catch(() => {});
     await sendMessage(chatId, `❌ Failed to fetch transactions: ${String(err)}`);
     return;
@@ -371,6 +390,7 @@ async function handleDelete(chatId: number, args: string[]): Promise<void> {
     await deleteMessage(chatId, placeholderId).catch(() => {});
     await sendMessage(chatId, formatDeleteConfirmation(tx, "en"), { parse_mode: "Markdown" });
   } catch (err) {
+    log.error("handler failed", err, { command: "/delete", txId: tx.id });
     await deleteMessage(chatId, placeholderId).catch(() => {});
     await sendMessage(chatId, `❌ Failed to delete: ${String(err)}`);
   }

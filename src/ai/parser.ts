@@ -1,5 +1,8 @@
 import { gateway, generateText, jsonSchema, Output } from "ai";
 import { ALL_CATEGORIES, ParsedMessageSchema, type ParsedMessage } from "../schemas";
+import { log as rootLog } from "../lib/logger";
+
+const log = rootLog.child({ module: "[parser]" });
 
 // Hand-crafted JSON schema with ALL fields in `required` and nullable
 // fields expressed via anyOf. Required by OpenAI's strict structured-output
@@ -112,7 +115,7 @@ export async function parseMessage(text: string, activePockets: string[]): Promi
     const result = ParsedMessageSchema.safeParse(normalized);
     return result.success ? result.data : { intent: "unknown", confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
   } catch (err) {
-    console.error("[parser] generateText failed:", err);
+    log.error("generateText failed", err);
     return { intent: "unknown", confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
   }
 }

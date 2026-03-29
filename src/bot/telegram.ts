@@ -1,6 +1,10 @@
 // Thin typed wrapper around the Telegram Bot API. Plain fetch, no library.
 // Non-2xx responses are logged and thrown — callers handle user-facing errors.
 
+import { log as rootLog } from "../lib/logger";
+
+const log = rootLog.child({ module: "[telegram]" });
+
 async function apiCall<T>(method: string, body: Record<string, unknown>): Promise<T> {
   const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/${method}`;
   const res = await fetch(url, {
@@ -11,7 +15,7 @@ async function apiCall<T>(method: string, body: Record<string, unknown>): Promis
 
   if (!res.ok) {
     const text = await res.text();
-    console.error(`[telegram] ${method} failed (${res.status}):`, text);
+    log.error("API call failed", new Error(text), { method, status: res.status });
     throw new Error(`Telegram API error: ${method} → ${res.status}`);
   }
 

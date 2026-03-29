@@ -1,6 +1,9 @@
 import { gateway, generateText } from "ai";
 import { formatCurrency } from "../utils/format";
 import type { FinancialContext } from "../services/analytics";
+import { log as rootLog } from "../lib/logger";
+
+const log = rootLog.child({ module: "[advisor]" });
 
 // ─── Language detection ───────────────────────────────────────────────────────
 // 1+ matches against Indonesian patterns → "id". Otherwise → "en".
@@ -151,7 +154,7 @@ export async function getAdvice(userMessage: string, ctx: FinancialContext): Pro
     });
     return text;
   } catch (err) {
-    console.error("[advisor] generateText failed:", err);
+    log.error("generateText failed", err);
     return FALLBACK[ctx.lang];
   }
 }
@@ -165,7 +168,7 @@ export async function getQuickSummary(ctx: FinancialContext): Promise<string> {
     });
     return text;
   } catch (err) {
-    console.error("[advisor] generateText failed:", err);
+    log.error("generateText failed", err);
     return FALLBACK[ctx.lang];
   }
 }

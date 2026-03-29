@@ -2,6 +2,9 @@ import { v4 as uuidv4 } from "uuid";
 import { TransactionSchema, type Transaction } from "../schemas";
 import { isInMonth } from "../utils/format";
 import { getSheets, getSpreadsheetId } from "./client";
+import { log as rootLog } from "../lib/logger";
+
+const log = rootLog.child({ module: "[sheets]" });
 
 // ─── Row serialization (exported for testing) ─────────────────────────────────
 
@@ -160,7 +163,10 @@ export async function deleteTransaction(id: string): Promise<boolean> {
   });
   const ids = (idsRes.data.values ?? []) as string[][];
   const rowIndex = ids.findIndex((row, i) => i > 0 && row[0] === id);
-  if (rowIndex === -1) return false;
+  if (rowIndex === -1) {
+    log.warn("row not found for deletion", { id });
+    return false;
+  }
 
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
   const sheet = spreadsheet.data.sheets?.find((s) => s.properties?.title === "transactions");

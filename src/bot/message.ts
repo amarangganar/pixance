@@ -1,5 +1,6 @@
 import { detectLanguage, getAdvice } from "../ai/advisor";
 import { parseMessage } from "../ai/parser";
+import type { Logger } from "../lib/logger";
 import { buildFinancialContext } from "../services/analytics";
 import { buildAndSaveTransaction } from "../services/transaction";
 import { getActivePocketNames } from "../sheets/pockets";
@@ -59,7 +60,7 @@ function summarizeTx(tx: import("../schemas").Transaction): string {
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
-export async function handleMessage(chatId: number, text: string): Promise<void> {
+export async function handleMessage(chatId: number, text: string, log: Logger): Promise<void> {
   const lang = detectLanguage(text);
 
   // Pending delete disambiguation
@@ -83,7 +84,8 @@ export async function handleMessage(chatId: number, text: string): Promise<void>
             ? `✅ Transaksi dihapus:\n${candidate.summary}`
             : `✅ Transaction deleted:\n${candidate.summary}`;
         await sendMessage(chatId, msg, {});
-      } catch {
+      } catch (err) {
+        log.error("deleteTransaction failed during disambiguation", err, { txId: candidate.id });
         const errMsg =
           pending.lang === "id"
             ? "❌ Gagal menghapus transaksi. Coba lagi."
@@ -103,6 +105,7 @@ export async function handleMessage(chatId: number, text: string): Promise<void>
   try {
     const activePockets = await getActivePocketNames();
     const parsed = await parseMessage(text, activePockets);
+    log.info("message parsed", { intent: parsed.intent, confidence: parsed.confidence });
 
     await deleteMessage(chatId, placeholderId);
 
@@ -155,8 +158,10 @@ export async function handleMessage(chatId: number, text: string): Promise<void>
     }
 
     const tx = await buildAndSaveTransaction(parsed, activePockets);
+    log.info("transaction saved", { intent: parsed.intent, amount: tx.amount });
     await sendMessage(chatId, formatConfirmation(tx, lang), { parse_mode: "Markdown" });
-  } catch {
+  } catch (err) {
+    log.error("handleMessage failed", err);
     // Try to clean up placeholder; ignore if already deleted.
     await deleteMessage(chatId, placeholderId).catch(() => {});
     const errMsg =

@@ -27,22 +27,49 @@ for (const key of REQUIRED_VARS) {
 import { startServer } from "./bot/index";
 import { setMyCommands, setWebhook } from "./bot/telegram";
 import { loadConfig } from "./config";
+import { log } from "./lib/logger";
 import { initSheets, initSheetsClient, readConfigFromMeta } from "./sheets/client";
 
 // ─── Startup sequence ─────────────────────────────────────────────────────────
 
-initSheetsClient();
+try {
+  initSheetsClient();
+} catch (err) {
+  log.error("[startup] initSheetsClient failed", err);
+  process.exit(1);
+}
 
-await initSheets();
+try {
+  await initSheets();
+} catch (err) {
+  log.error("[startup] initSheets failed", err);
+  process.exit(1);
+}
 
-const { currency, timezone } = await readConfigFromMeta();
-loadConfig(currency, timezone);
+try {
+  const { currency, timezone } = await readConfigFromMeta();
+  loadConfig(currency, timezone);
+} catch (err) {
+  log.error("[startup] readConfigFromMeta failed", err);
+  process.exit(1);
+}
 
-await setWebhook(process.env.WEBHOOK_URL ?? "");
-await setMyCommands();
+try {
+  await setWebhook(process.env.WEBHOOK_URL ?? "");
+} catch (err) {
+  log.error("[startup] setWebhook failed", err);
+  process.exit(1);
+}
+
+try {
+  await setMyCommands();
+} catch (err) {
+  log.warn("[startup] setMyCommands failed — bot commands menu may be outdated", { err: String(err) });
+}
 
 const server = startServer();
-console.log(`🧚 Pixance is live! Listening on port ${process.env.PORT ?? 3000}`);
+const port = process.env.PORT ?? 3000;
+log.info("startup complete", { port });
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
 

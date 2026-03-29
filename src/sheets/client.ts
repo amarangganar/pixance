@@ -1,5 +1,8 @@
 import type { sheets_v4 } from "googleapis";
 import { google } from "googleapis";
+import { log as rootLog } from "../lib/logger";
+
+const log = rootLog.child({ module: "[sheets]" });
 
 // ─── Client singleton ─────────────────────────────────────────────────────────
 
@@ -14,6 +17,7 @@ export function initSheetsClient(): void {
   });
   _sheets = google.sheets({ version: "v4", auth });
   _spreadsheetId = process.env.SPREADSHEET_ID ?? "";
+  log.info("sheets client initialized");
 }
 
 export function getSheets(): sheets_v4.Sheets {
@@ -106,6 +110,7 @@ export async function initSheets(): Promise<void> {
   await ensureSheet("transactions", TX_HEADERS);
   await ensureSheet("meta", META_HEADERS);
   await seedMetaDefaults();
+  log.info("sheets initialized");
 }
 
 // ─── Config reader ────────────────────────────────────────────────────────────
