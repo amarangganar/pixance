@@ -2,6 +2,7 @@ import type { TelegramUpdate } from "../schemas";
 import { TelegramUpdateSchema } from "../schemas";
 import { handleCommand } from "./commands";
 import { handleMessage } from "./message";
+import { sendMessage } from "./telegram";
 
 export function startServer() {
   return Bun.serve({
@@ -23,6 +24,11 @@ async function handleUpdate(update: TelegramUpdate): Promise<void> {
   if (!message?.text) return; // ignore stickers, photos, etc.
 
   const { chat, text } = message;
+
+  if (chat.id !== Number(process.env.OWNER_CHAT_ID)) {
+    await sendMessage(chat.id, "This is a personal bot and you're not authorized to use it.\n\nWant your own? Deploy it yourself: https://github.com/amarangganar/pixance");
+    return;
+  }
 
   if (text.startsWith("/")) {
     await handleCommand(chat.id, text);

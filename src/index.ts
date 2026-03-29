@@ -12,6 +12,7 @@ const REQUIRED_VARS = [
   "GOOGLE_SERVICE_ACCOUNT_JSON",
   "SPREADSHEET_ID",
   "WEBHOOK_URL",
+  "OWNER_CHAT_ID",
 ] as const;
 
 for (const key of REQUIRED_VARS) {

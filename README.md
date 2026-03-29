@@ -45,12 +45,15 @@ Fill in `.env`:
 | Variable | Required | Description |
 |---|---|---|
 | `BOT_TOKEN` | ✅ | Telegram bot token from @BotFather |
+| `OWNER_CHAT_ID` | ✅ | Your Telegram user ID — get it from [@userinfobot](https://t.me/userinfobot) |
 | `AI_GATEWAY_API_KEY` | ✅ | Vercel AI Gateway API key |
 | `AI_MODEL` | — | Model to use (default: `anthropic/claude-sonnet-4-5`) |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | ✅ | Full service account JSON as a string (see below) |
 | `SPREADSHEET_ID` | ✅ | Google Sheets ID from the URL (see below) |
 | `WEBHOOK_URL` | ✅ | Public HTTPS URL Telegram will POST updates to |
 | `PORT` | — | Server port (default: `3000`) |
+
+> **`OWNER_CHAT_ID`** locks the bot to a single user. To find your ID, message [@userinfobot](https://t.me/userinfobot) — it replies with your numeric user ID.
 
 ### 3. Google Sheets setup
 
@@ -206,6 +209,24 @@ gajian 8jt ke BCA             → income: salary, 8M, BCA pocket
 transfer BCA ke Gopay 1jt     → transfer: 1M from BCA to Gopay
 gimana kondisi keuangan aku?  → triggers financial advisor (Indonesian)
 how's my spending this month? → triggers financial advisor (English)
+```
+
+---
+
+## Deployment
+
+```bash
+# Build and start
+docker compose up -d --build
+
+# Update after git pull
+git pull && docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
 ```
 
 ---
