@@ -118,6 +118,7 @@ Your job:
 - End with 1–3 concrete, specific action steps tailored to THIS data — not generic platitudes like "spend less"
 - Be direct, be real, skip the fluff
 - You may use Markdown formatting where it genuinely helps readability (**bold**, _italic_, ~~strikethrough~~, • bullets) — but don't force it
+- Never end with offers to help further, invitations to ask follow-up questions, or filler like "Let me know if…" — this is a one-shot message, not a conversation
 
 ${langInstruction}`;
 }
