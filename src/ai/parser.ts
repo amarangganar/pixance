@@ -26,6 +26,31 @@ const PARSER_SCHEMA = jsonSchema<ParsedMessage>({
   additionalProperties: false,
 });
 
+// ─── Keyword pre-check ───────────────────────────────────────────────────────
+// Short-circuit to query/advice without an AI call when the message clearly
+// contains no amount and matches known intent keywords.
+
+const AMOUNT_PATTERN = /\d+(rb|ribu|jt|juta|mio|k)\b|\d{3,}/i;
+
+const ADVICE_KEYWORDS = [
+  /\bsaran\b/, /\badvice\b/, /\bsuggest\b/, /\brekomendasi\b/, /\btips\b/,
+];
+
+const QUERY_KEYWORDS = [
+  /\bgimana\b/, /\bbagaimana\b/, /\bberapa\b/, /\bhow\b/, /\bshow\b/,
+  /\blaporan\b/, /\breport\b/, /\bkondisi\b/, /\bpengeluaran\b/,
+  /\bpemasukan\b/, /\bsummary\b/, /\bringkasan\b/, /\banalisis\b/,
+  /\banalyze\b/, /\banalisa\b/, /\bbulan ini\b/, /\bthis month\b/,
+];
+
+function detectQueryIntent(text: string): "query" | "advice" | null {
+  if (AMOUNT_PATTERN.test(text)) return null;
+  const lower = text.toLowerCase();
+  if (ADVICE_KEYWORDS.some((p) => p.test(lower))) return "advice";
+  if (QUERY_KEYWORDS.some((p) => p.test(lower))) return "query";
+  return null;
+}
+
 function buildPrompt(text: string, activePockets: string[]): string {
   const pocketList = activePockets.length > 0 ? activePockets.join(", ") : "Main";
   return `Parse the following personal finance message and extract structured transaction data.
@@ -105,6 +130,11 @@ Always populate 'note' with a short description of the specific item or purpose 
 }
 
 export async function parseMessage(text: string, activePockets: string[]): Promise<ParsedMessage> {
+  const precheck = detectQueryIntent(text);
+  if (precheck) {
+    return { intent: precheck, confidence: 1, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
+  }
+
   try {
     const { output: object } = await generateText({
       model: gateway(process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5"),
