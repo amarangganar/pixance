@@ -24,7 +24,7 @@ for (const key of REQUIRED_VARS) {
 // ─── Imports after validation ─────────────────────────────────────────────────
 
 import { startServer } from "./bot/index";
-import { setWebhook } from "./bot/telegram";
+import { setMyCommands, setWebhook } from "./bot/telegram";
 import { loadConfig } from "./config";
 import { initSheets, initSheetsClient, readConfigFromMeta } from "./sheets/client";
 
@@ -38,6 +38,7 @@ const { currency, timezone } = await readConfigFromMeta();
 loadConfig(currency, timezone);
 
 await setWebhook(process.env.WEBHOOK_URL ?? "");
+await setMyCommands();
 
 const server = startServer();
 console.log(`🧚 Pixance is live! Listening on port ${process.env.PORT ?? 3000}`);

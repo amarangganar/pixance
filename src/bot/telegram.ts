@@ -38,3 +38,20 @@ export async function sendChatAction(chatId: number, action: "typing"): Promise<
 export async function setWebhook(url: string): Promise<void> {
   await apiCall("setWebhook", { url });
 }
+
+export async function setMyCommands(): Promise<void> {
+  await apiCall("setMyCommands", {
+    commands: [
+      { command: "start", description: "Show help and active pockets" },
+      { command: "report", description: "Monthly financial summary" },
+      { command: "history", description: "Last 10 transactions" },
+      { command: "pockets", description: "List active pockets" },
+      { command: "addpocket", description: "Create a new pocket" },
+      { command: "renamepocket", description: "Rename a pocket" },
+      { command: "archivepocket", description: "Archive a pocket" },
+      { command: "restorepocket", description: "Restore an archived pocket" },
+      { command: "delete", description: "Delete a recent transaction" },
+      { command: "advice", description: "AI-powered financial advice" },
+    ],
+  });
+}
