@@ -1,4 +1,4 @@
-import { gateway, generateObject, jsonSchema } from "ai";
+import { gateway, generateText, jsonSchema, Output } from "ai";
 import { ALL_CATEGORIES, ParsedMessageSchema, type ParsedMessage } from "../schemas";
 
 // Hand-crafted JSON schema with ALL fields in `required` and nullable
@@ -103,15 +103,16 @@ Always populate 'note' with a short description of the specific item or purpose 
 
 export async function parseMessage(text: string, activePockets: string[]): Promise<ParsedMessage> {
   try {
-    const { object } = await generateObject({
+    const { output: object } = await generateText({
       model: gateway(process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5"),
-      schema: PARSER_SCHEMA,
+      output: Output.object({ schema: PARSER_SCHEMA }),
       prompt: buildPrompt(text, activePockets),
     });
-    const result = ParsedMessageSchema.safeParse(object);
+    const normalized = { ...object, amount: object.amount === 0 ? null : object.amount };
+    const result = ParsedMessageSchema.safeParse(normalized);
     return result.success ? result.data : { intent: "unknown", confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
   } catch (err) {
-    console.error("[parser] generateObject failed:", err);
+    console.error("[parser] generateText failed:", err);
     return { intent: "unknown", confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
   }
 }
