@@ -11,7 +11,7 @@ import {
   restorePocket,
 } from "../sheets/pockets";
 import { deleteTransaction, getAllTransactions, getRecentTransactions } from "../sheets/transactions";
-import { getCurrentMonthYear, isInMonth, isInWeek, isToday } from "../utils/format";
+import { getCurrentMonthYear, isInMonth, isInWeek, isToday, formatCurrency } from "../utils/format";
 import { formatDeleteConfirmation, formatHistory, formatReport, type ReportData } from "./format";
 import { deleteMessage, sendMessage } from "./telegram";
 import { stripMarkdown, toTelegramMarkdownV2 } from "../utils/format";
@@ -58,11 +58,16 @@ export function parseArgs(raw: string): string[] {
  * Formats an array of pockets into a human-readable list.
  * When `showAll` is true, archived pockets are included and labeled.
  */
-export function formatPocketList(pockets: Pocket[], showAll: boolean): string {
+export function formatPocketList(pockets: Pocket[], showAll: boolean, balances?: Map<string, number>): string {
   const visible = showAll ? pockets : pockets.filter((p) => p.status === "active");
   if (visible.length === 0) return "No pockets found.";
   return visible
-    .map((p) => (p.status === "archived" ? `• ${p.name} [archived]` : `• ${p.name}`))
+    .map((p) => {
+      const label = p.status === "archived" ? `• ${p.name} [archived]` : `• ${p.name}`;
+      if (balances === undefined) return label;
+      const amt = balances.get(p.name) ?? 0;
+      return `${label} — ${formatCurrency(amt)}`;
+    })
     .join("\n");
 }
 
@@ -276,8 +281,21 @@ async function handleStart(chatId: number, log: Logger): Promise<void> {
 async function handlePockets(chatId: number, args: string[], log: Logger): Promise<void> {
   const showAll = args[0]?.toLowerCase() === "all";
   try {
-    const pockets = await getAllPockets();
-    const list = formatPocketList(pockets, showAll);
+    const [pockets, txs] = await Promise.all([getAllPockets(), getAllTransactions()]);
+
+    const balanceMap = new Map<string, number>();
+    for (const tx of txs) {
+      if (tx.type === "income") {
+        balanceMap.set(tx.pocket, (balanceMap.get(tx.pocket) ?? 0) + tx.amount);
+      } else if (tx.type === "expense") {
+        balanceMap.set(tx.pocket, (balanceMap.get(tx.pocket) ?? 0) - tx.amount);
+      } else {
+        balanceMap.set(tx.from_pocket, (balanceMap.get(tx.from_pocket) ?? 0) - tx.amount);
+        balanceMap.set(tx.to_pocket, (balanceMap.get(tx.to_pocket) ?? 0) + tx.amount);
+      }
+    }
+
+    const list = formatPocketList(pockets, showAll, balanceMap);
     const header = showAll ? "*All pockets:*" : "*Active pockets:*";
     await sendMessage(chatId, `${header}\n${list}`, { parse_mode: "Markdown" });
   } catch (err) {

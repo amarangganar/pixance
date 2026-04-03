@@ -79,3 +79,33 @@ describe("formatPocketList — empty", () => {
     expect(result.length).toBeGreaterThan(0);
   });
 });
+
+describe("formatPocketList — with balances", () => {
+  const pockets: Pocket[] = [
+    { name: "BCA", status: "active" },
+    { name: "Cash", status: "archived" },
+  ];
+  const balances = new Map([["BCA", 50000], ["Cash", 0]]);
+
+  test("shows balance for active pocket", () => {
+    const result = formatPocketList(pockets, false, balances);
+    expect(result).toContain("BCA");
+    expect(result).toContain("Rp50.000");
+  });
+
+  test("does not show archived pocket when showAll is false", () => {
+    const result = formatPocketList(pockets, false, balances);
+    expect(result).not.toContain("Cash");
+  });
+
+  test("shows archived pocket with archived label and balance when showAll is true", () => {
+    const result = formatPocketList(pockets, true, balances);
+    expect(result).toContain("Cash [archived]");
+    expect(result).toContain("Rp0");
+  });
+
+  test("omits balance display when balances map is absent", () => {
+    const result = formatPocketList([{ name: "BCA", status: "active" }], false);
+    expect(result).toBe("• BCA");
+  });
+});
