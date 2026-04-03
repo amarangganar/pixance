@@ -26,21 +26,25 @@ export function formatConfirmation(tx: Transaction, lang: "id" | "en"): string {
 // ─── Report data type ─────────────────────────────────────────────────────────
 
 export interface ReportData {
+  period: "today" | "week" | "month";
   month: number;
   year: number;
   totalIncome: number;
   totalExpense: number;
   totalTransferred: number;
   categoryBreakdown: { category: string; total: number; count: number }[];
-  pocketBreakdown: { pocket: string; totalIn: number; totalOut: number }[];
+  pocketBreakdown: { pocket: string; balance: number; overdrawn: number; used: number }[];
 }
 
 // ─── /report formatter ────────────────────────────────────────────────────────
 
 export function formatReport(data: ReportData, lang: "id" | "en" = "en"): string {
-  const { month, year, totalIncome, totalExpense, totalTransferred, categoryBreakdown, pocketBreakdown } = data;
-  const monthYear = formatMonthYear(month, year, lang);
-  const header = lang === "en" ? `📊 *${monthYear} Report*` : `📊 *Laporan ${monthYear}*`;
+  const { period, month, year, totalIncome, totalExpense, totalTransferred, categoryBreakdown, pocketBreakdown } = data;
+  const periodLabel =
+    period === "today" ? (lang === "id" ? "Hari Ini" : "Today") :
+    period === "week"  ? (lang === "id" ? "Minggu Ini" : "This Week") :
+    formatMonthYear(month, year, lang);
+  const header = lang === "en" ? `📊 *${periodLabel} Report*` : `📊 *Laporan ${periodLabel}*`;
 
   const t = {
     empty: lang === "id"
@@ -79,11 +83,11 @@ export function formatReport(data: ReportData, lang: "id" | "en" = "en"): string
   if (pocketBreakdown.length > 0) {
     lines.push("");
     lines.push(t.perPocket);
-    for (const { pocket, totalIn, totalOut } of pocketBreakdown) {
-      lines.push(`• ${pocket}: in ${formatCurrency(totalIn)} / out ${formatCurrency(totalOut)}`);
-      if (totalIn > 0) {
-        lines.push(`  ${progressBar(totalOut, totalIn)}`);
-      }
+    for (const { pocket, balance, overdrawn, used } of pocketBreakdown) {
+      const balanceStr = overdrawn > 0
+        ? `${formatCurrency(0)} (−${formatCurrency(overdrawn)})`
+        : formatCurrency(balance);
+      lines.push(`• ${pocket} — balance: ${balanceStr} · used: ${formatCurrency(used)}`);
     }
   }
 

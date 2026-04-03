@@ -20,6 +20,7 @@ beforeAll(() => loadConfig("IDR", "Asia/Jakarta"));
 
 describe("formatReport — with transactions", () => {
   const data = {
+    period: "month" as const,
     month: 3,
     year: 2026,
     totalIncome: 8_000_000,
@@ -30,9 +31,9 @@ describe("formatReport — with transactions", () => {
       { category: "Transport", total: 100_000, count: 1 },
     ],
     pocketBreakdown: [
-      { pocket: "BCA", totalIn: 8_000_000, totalOut: 500_000 },
-      { pocket: "Gopay", totalIn: 1_000_000, totalOut: 2_000_000 },
-      { pocket: "Cash", totalIn: 0, totalOut: 100_000 },
+      { pocket: "BCA", balance: 7_500_000, overdrawn: 0, used: 500_000 },
+      { pocket: "Gopay", balance: 3_000_000, overdrawn: 0, used: 2_000_000 },
+      { pocket: "Cash", balance: 0, overdrawn: 0, used: 100_000 },
     ],
   };
 
@@ -99,29 +100,19 @@ describe("formatReport — with transactions", () => {
     expect(result).toContain("Cash");
   });
 
-  test("pocket progress bar shown when totalIn > 0", () => {
+  test("no pocket progress bars — only the overall bar appears", () => {
     const result = formatReport(data);
-    // BCA and Gopay have totalIn > 0 — expect at least one bar
     const barMatches = result.match(/\[█+░*\] \d+%/g);
+    // Only the overall income-vs-expense bar should appear, not per-pocket bars
     expect(barMatches).not.toBeNull();
-    expect(barMatches!.length).toBeGreaterThanOrEqual(2); // overall + at least one pocket
-  });
-
-  test("pocket progress bar omitted when totalIn === 0", () => {
-    // Cash has totalIn=0 — its bar should not appear adjacent to Cash
-    const result = formatReport(data);
-    const lines = result.split("\n");
-    const cashIdx = lines.findIndex((l) => l.includes("Cash"));
-    expect(cashIdx).toBeGreaterThan(-1);
-    // Line after Cash should not be a progress bar
-    const lineAfterCash = lines[cashIdx + 1] ?? "";
-    expect(lineAfterCash).not.toMatch(/\[█+░*\]/);
+    expect(barMatches!.length).toBe(1);
   });
 });
 
 describe("formatReport — no transactions", () => {
   test("returns English encouraging message by default", () => {
     const result = formatReport({
+      period: "month",
       month: 3,
       year: 2026,
       totalIncome: 0,
@@ -136,6 +127,7 @@ describe("formatReport — no transactions", () => {
 
   test("returns Indonesian encouraging message when lang=id", () => {
     const result = formatReport({
+      period: "month",
       month: 3,
       year: 2026,
       totalIncome: 0,
@@ -152,13 +144,14 @@ describe("formatReport — no transactions", () => {
 describe("formatReport — income is zero", () => {
   test("overall progress bar omitted when income is 0", () => {
     const result = formatReport({
+      period: "month",
       month: 3,
       year: 2026,
       totalIncome: 0,
       totalExpense: 500_000,
       totalTransferred: 0,
       categoryBreakdown: [{ category: "Food & Drinks", total: 500_000, count: 2 }],
-      pocketBreakdown: [{ pocket: "Cash", totalIn: 500_000, totalOut: 500_000 }],
+      pocketBreakdown: [{ pocket: "Cash", balance: 1_000_000, overdrawn: 0, used: 500_000 }],
     });
     // Only the pocket bar should appear, not an overall income-vs-expense bar
     // Count bars: should be 1 (pocket) not 2 (overall + pocket)

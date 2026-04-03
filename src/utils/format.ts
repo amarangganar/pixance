@@ -70,6 +70,21 @@ export function isInMonth(isoString: string, month: number, year: number): boole
   return txMonth === month && txYear === year;
 }
 
+export function isToday(isoString: string): boolean {
+  const tz = getTimezone();
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz });
+  return fmt.format(new Date()) === fmt.format(new Date(isoString));
+}
+
+export function isInWeek(isoString: string): boolean {
+  const tz = getTimezone();
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz });
+  const nowDate = new Date(fmt.format(new Date()));
+  const txDate = new Date(fmt.format(new Date(isoString)));
+  const diffDays = (nowDate.getTime() - txDate.getTime()) / 86_400_000;
+  return diffDays >= 0 && diffDays < 7;
+}
+
 // ─── Telegram MarkdownV2 converter ───────────────────────────────────────────
 // Converts standard Markdown (as produced by AI models) to Telegram MarkdownV2.
 // - **bold** → *bold*

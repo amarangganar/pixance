@@ -11,7 +11,7 @@ import {
   restorePocket,
 } from "../sheets/pockets";
 import { deleteTransaction, getAllTransactions, getRecentTransactions } from "../sheets/transactions";
-import { getCurrentMonthYear, isInMonth } from "../utils/format";
+import { getCurrentMonthYear, isInMonth, isInWeek, isToday } from "../utils/format";
 import { formatDeleteConfirmation, formatHistory, formatReport, type ReportData } from "./format";
 import { deleteMessage, sendMessage } from "./telegram";
 import { stripMarkdown, toTelegramMarkdownV2 } from "../utils/format";
@@ -104,24 +104,44 @@ export async function handleCommand(chatId: number, text: string, log: Logger): 
 // ─── /report ──────────────────────────────────────────────────────────────────
 
 async function handleReport(chatId: number, args: string[], log: Logger): Promise<void> {
-  const lang: "id" | "en" = args[0]?.toLowerCase() === "id" ? "id" : "en";
+  const PERIODS = ["today", "week", "month"] as const;
+  type Period = (typeof PERIODS)[number];
+
+  let period: Period = "today";
+  let lang: "id" | "en" = "en";
+
+  if (args[0] && (PERIODS as readonly string[]).includes(args[0])) {
+    period = args[0] as Period;
+    lang = args[1]?.toLowerCase() === "id" ? "id" : "en";
+  } else {
+    // backward compat: /report [lang]
+    lang = args[0]?.toLowerCase() === "id" ? "id" : "en";
+  }
+
   const { month, year } = getCurrentMonthYear();
   const placeholder = lang === "id" ? "⏳ Menyiapkan laporan..." : "⏳ Preparing report...";
   const { message_id: placeholderId } = await sendMessage(chatId, placeholder);
 
   let txs: Transaction[];
+  let activePockets: string[];
   try {
-    txs = await getAllTransactions();
+    [txs, activePockets] = await Promise.all([getAllTransactions(), getActivePocketNames()]);
   } catch (err) {
     log.error("handler failed", err, { command: "/report" });
     await deleteMessage(chatId, placeholderId).catch(() => {});
-    await sendMessage(chatId, `❌ Failed to fetch transactions: ${String(err)}`);
+    await sendMessage(chatId, `❌ Failed to fetch data: ${String(err)}`);
     return;
   }
 
-  const monthly = txs.filter((tx) => isInMonth(tx.timestamp, month, year));
+  const filterFn =
+    period === "today" ? (tx: Transaction) => isToday(tx.timestamp) :
+    period === "week"  ? (tx: Transaction) => isInWeek(tx.timestamp) :
+    (tx: Transaction) => isInMonth(tx.timestamp, month, year);
+
+  const periodTxs = txs.filter(filterFn);
 
   const data: ReportData = {
+    period,
     month,
     year,
     totalIncome: 0,
@@ -131,37 +151,59 @@ async function handleReport(chatId: number, args: string[], log: Logger): Promis
     pocketBreakdown: [],
   };
 
-  const catMap = new Map<string, { total: number; count: number }>();
-  const pocketMap = new Map<string, { totalIn: number; totalOut: number }>();
-  const pocket = (name: string) => {
-    if (!pocketMap.has(name)) pocketMap.set(name, { totalIn: 0, totalOut: 0 });
-    return pocketMap.get(name)!;
+  // Pass 1: all-time pocket net balance across entire history
+  const allTimePocketMap = new Map<string, { totalIn: number; totalOut: number }>();
+  const allTimePocket = (name: string) => {
+    if (!allTimePocketMap.has(name)) allTimePocketMap.set(name, { totalIn: 0, totalOut: 0 });
+    return allTimePocketMap.get(name)!;
   };
+  for (const tx of txs) {
+    if (tx.type === "income") allTimePocket(tx.pocket).totalIn += tx.amount;
+    else if (tx.type === "expense") allTimePocket(tx.pocket).totalOut += tx.amount;
+    else {
+      allTimePocket(tx.from_pocket).totalOut += tx.amount;
+      allTimePocket(tx.to_pocket).totalIn += tx.amount;
+    }
+  }
 
-  for (const tx of monthly) {
+  // Pass 2: period-specific aggregation
+  const catMap = new Map<string, { total: number; count: number }>();
+  const periodPocketMap = new Map<string, { totalOut: number }>();
+  for (const tx of periodTxs) {
     if (tx.type === "income") {
       data.totalIncome += tx.amount;
       const cat = catMap.get(tx.category) ?? { total: 0, count: 0 };
       cat.total += tx.amount;
       cat.count += 1;
       catMap.set(tx.category, cat);
-      pocket(tx.pocket).totalIn += tx.amount;
     } else if (tx.type === "expense") {
       data.totalExpense += tx.amount;
       const cat = catMap.get(tx.category) ?? { total: 0, count: 0 };
       cat.total += tx.amount;
       cat.count += 1;
       catMap.set(tx.category, cat);
-      pocket(tx.pocket).totalOut += tx.amount;
+      const p = periodPocketMap.get(tx.pocket) ?? { totalOut: 0 };
+      p.totalOut += tx.amount;
+      periodPocketMap.set(tx.pocket, p);
     } else {
       data.totalTransferred += tx.amount;
-      pocket(tx.from_pocket).totalOut += tx.amount;
-      pocket(tx.to_pocket).totalIn += tx.amount;
+      const p = periodPocketMap.get(tx.from_pocket) ?? { totalOut: 0 };
+      p.totalOut += tx.amount;
+      periodPocketMap.set(tx.from_pocket, p);
     }
   }
 
   data.categoryBreakdown = [...catMap.entries()].map(([category, { total, count }]) => ({ category, total, count }));
-  data.pocketBreakdown = [...pocketMap.entries()].map(([p, { totalIn, totalOut }]) => ({ pocket: p, totalIn, totalOut }));
+  data.pocketBreakdown = activePockets.map((name) => {
+    const at = allTimePocketMap.get(name) ?? { totalIn: 0, totalOut: 0 };
+    const net = at.totalIn - at.totalOut;
+    return {
+      pocket: name,
+      balance: Math.max(0, net),
+      overdrawn: net < 0 ? -net : 0,
+      used: periodPocketMap.get(name)?.totalOut ?? 0,
+    };
+  });
 
   await deleteMessage(chatId, placeholderId).catch(() => {});
   await sendMessage(chatId, formatReport(data, lang), { parse_mode: "Markdown" });
@@ -203,7 +245,7 @@ async function handleStart(chatId: number, log: Logger): Promise<void> {
     "🧚 *Pixance* is live!",
     "",
     "*Commands:*",
-    "/report — monthly summary with category & pocket breakdown",
+    "/report [today|week|month] [id|en] — summary with category & pocket breakdown (default: today)",
     "/history — last 10 transactions",
     "/pockets — list active pockets",
     "/pockets all — all pockets including archived",
