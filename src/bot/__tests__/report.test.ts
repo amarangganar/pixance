@@ -63,17 +63,17 @@ describe("formatReport — with transactions", () => {
 
   test("shows income total", () => {
     const result = formatReport(data);
-    expect(result).toContain("8jt");
+    expect(result).toContain("8.000.000");
   });
 
   test("shows expense total", () => {
     const result = formatReport(data);
-    expect(result).toContain("2.5jt");
+    expect(result).toContain("2.500.000");
   });
 
   test("shows transfer total", () => {
     const result = formatReport(data);
-    expect(result).toContain("1jt");
+    expect(result).toContain("1.000.000");
   });
 
   test("overall progress bar present when income > 0", () => {
@@ -158,7 +158,7 @@ describe("formatReport — income is zero", () => {
     const barMatches = result.match(/\[█+░*\] \d+%/g);
     // overall bar should NOT be present since income === 0
     // verify by checking expense section doesn't have a bar right after it
-    expect(result).toContain("500rb");
+    expect(result).toContain("500.000");
     // Just confirm no "NaN%" in result
     expect(result).not.toContain("NaN");
   });
@@ -230,7 +230,7 @@ describe("formatHistory — with transactions", () => {
   test("expense format: N. 💸 amount · category · note · date", () => {
     const result = formatHistory(txs);
     expect(result).toContain("💸");
-    expect(result).toContain("25rb");
+    expect(result).toContain("25.000");
     expect(result).toContain("Food & Drinks");
     expect(result).toContain("kopi");
   });
@@ -238,7 +238,7 @@ describe("formatHistory — with transactions", () => {
   test("income format: N. 💰 amount · category · note · date", () => {
     const result = formatHistory(txs);
     expect(result).toContain("💰");
-    expect(result).toContain("8jt");
+    expect(result).toContain("8.000.000");
     expect(result).toContain("Salary");
     expect(result).toContain("gajian");
   });
@@ -246,7 +246,7 @@ describe("formatHistory — with transactions", () => {
   test("transfer format: N. 🔄 amount · from → to · note · date", () => {
     const result = formatHistory(txs);
     expect(result).toContain("🔄");
-    expect(result).toContain("3jt");
+    expect(result).toContain("3.000.000");
     expect(result).toContain("BCA");
     expect(result).toContain("Gopay");
     expect(result).toContain("topup");

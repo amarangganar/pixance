@@ -33,7 +33,7 @@ describe("formatConfirmation — expense", () => {
   test("includes expense emoji and amount", () => {
     const msg = formatConfirmation(tx, "id");
     expect(msg).toContain("💸");
-    expect(msg).toContain("25rb");
+    expect(msg).toContain("25.000");
   });
 
   test("includes category and note", () => {
@@ -69,7 +69,7 @@ describe("formatConfirmation — income", () => {
   test("includes income emoji and amount", () => {
     const msg = formatConfirmation(tx, "id");
     expect(msg).toContain("💰");
-    expect(msg).toContain("8jt");
+    expect(msg).toContain("8.000.000");
   });
 });
 
@@ -127,7 +127,7 @@ describe("formatDeleteConfirmation", () => {
   test("includes transaction details in confirmation", () => {
     const msg = formatDeleteConfirmation(expenseTx, "en");
     expect(msg).toContain("💸");
-    expect(msg).toContain("25rb");
+    expect(msg).toContain("25.000");
     expect(msg).toContain("kopi");
   });
 

@@ -6,17 +6,7 @@ export function formatCurrency(amount: number, currency?: string): string {
   const cur = currency ?? getCurrency();
 
   if (cur === "IDR") {
-    if (amount < 1_000) return `Rp ${amount}`;
-    if (amount < 1_000_000) {
-      const rb = amount / 1_000;
-      return `Rp ${Number.isInteger(rb) ? rb : rb.toFixed(1)}rb`;
-    }
-    if (amount < 1_000_000_000) {
-      const jt = amount / 1_000_000;
-      return `Rp ${Number.isInteger(jt) ? jt : jt.toFixed(1)}jt`;
-    }
-    const M = amount / 1_000_000_000;
-    return `Rp ${Number.isInteger(M) ? M : M.toFixed(1)}M`;
+    return "Rp" + new Intl.NumberFormat("id-ID").format(amount);
   }
 
   return new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(amount);
