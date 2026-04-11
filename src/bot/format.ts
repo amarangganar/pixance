@@ -1,5 +1,5 @@
 import type { Transaction } from "../schemas";
-import { formatCurrency, formatDate, formatMonthYear, progressBar } from "../utils/format";
+import { formatCurrency, formatDate, formatMonthYear } from "../utils/format";
 
 export function formatConfirmation(tx: Transaction, lang: "id" | "en"): string {
   const amount = formatCurrency(tx.amount);
@@ -66,11 +66,6 @@ export function formatReport(data: ReportData, lang: "id" | "en" = "en"): string
   lines.push(`💰 ${t.income}: ${formatCurrency(totalIncome)}`);
   lines.push(`💸 ${t.expense}: ${formatCurrency(totalExpense)}`);
   lines.push(`🔄 ${t.transfer}: ${formatCurrency(totalTransferred)}`);
-
-  if (totalIncome > 0) {
-    lines.push("");
-    lines.push(progressBar(totalExpense, totalIncome));
-  }
 
   if (categoryBreakdown.length > 0) {
     lines.push("");

@@ -175,14 +175,3 @@ export function detectLanguage(text: string): "id" | "en" {
   const lower = text.toLowerCase();
   return ID_PATTERNS.some((p) => p.test(lower)) ? "id" : "en";
 }
-
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-
-export function progressBar(used: number, total: number, length = 10): string {
-  if (total <= 0) return "";
-  const ratio = Math.min(used / total, 1);
-  const filled = Math.round(ratio * length);
-  const empty = length - filled;
-  const pct = Math.round(ratio * 100);
-  return `[${"█".repeat(filled)}${"░".repeat(empty)}] ${pct}%`;
-}

@@ -76,11 +76,6 @@ describe("formatReport — with transactions", () => {
     expect(result).toContain("1.000.000");
   });
 
-  test("overall progress bar present when income > 0", () => {
-    const result = formatReport(data);
-    expect(result).toMatch(/\[█+░*\] \d+%/);
-  });
-
   test("category breakdown lists all categories", () => {
     const result = formatReport(data);
     expect(result).toContain("Food & Drinks");
@@ -100,12 +95,9 @@ describe("formatReport — with transactions", () => {
     expect(result).toContain("Cash");
   });
 
-  test("no pocket progress bars — only the overall bar appears", () => {
+  test("no progress bars appear in the report", () => {
     const result = formatReport(data);
-    const barMatches = result.match(/\[█+░*\] \d+%/g);
-    // Only the overall income-vs-expense bar should appear, not per-pocket bars
-    expect(barMatches).not.toBeNull();
-    expect(barMatches!.length).toBe(1);
+    expect(result).not.toMatch(/\[█+░*\] \d+%/);
   });
 });
 
