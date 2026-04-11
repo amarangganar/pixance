@@ -86,6 +86,8 @@ Expenses:
 - Salon, potong rambut, spa, perawatan diri, barbershop → "Personal Care"
 - Kost, sewa, kontrakan, rent → "Housing & Rent"
 - Subscription, netflix, spotify, icloud, domain → "Subscriptions"
+- Kasih uang, kasih duit, kirimin duit, kirim uang, hadiahi, traktir, nraktir, beliin, bayarin, beliin hadiah, give money, gift to, treat → "Gift Given"
+- Pinjemin, pinjamin, minjemin, hutangin, kasih pinjaman, kasih utang, lend, loan to → "Loan Given"
 - Anything else → "Other"
 
 Income:
