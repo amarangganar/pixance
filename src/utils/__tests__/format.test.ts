@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { detectLanguage, stripMarkdown, toTelegramMarkdownV2 } from "../format";
+import { dateStringToTimestamp, detectLanguage, stripMarkdown, toTelegramMarkdownV2 } from "../format";
 
 describe("toTelegramMarkdownV2 — plain text escaping", () => {
   test("escapes period", () => {
@@ -137,6 +137,30 @@ describe("stripMarkdown", () => {
 
   test("empty string returns empty string", () => {
     expect(stripMarkdown("")).toBe("");
+  });
+});
+
+// ─── dateStringToTimestamp ────────────────────────────────────────────────────
+
+describe("dateStringToTimestamp", () => {
+  test("Asia/Jakarta (UTC+7): midnight local = 17:00 previous day UTC", () => {
+    expect(dateStringToTimestamp("2026-04-11", "Asia/Jakarta")).toBe("2026-04-10T17:00:00.000Z");
+  });
+
+  test("UTC: midnight local = midnight UTC", () => {
+    expect(dateStringToTimestamp("2026-04-11", "UTC")).toBe("2026-04-11T00:00:00.000Z");
+  });
+
+  test("America/New_York (UTC-4 in April, DST active): midnight local = 04:00 UTC", () => {
+    expect(dateStringToTimestamp("2026-04-11", "America/New_York")).toBe("2026-04-11T04:00:00.000Z");
+  });
+
+  test("handles month boundary correctly (April 1 Jakarta → March 31 UTC)", () => {
+    expect(dateStringToTimestamp("2026-04-01", "Asia/Jakarta")).toBe("2026-03-31T17:00:00.000Z");
+  });
+
+  test("handles year boundary correctly (Jan 1 Jakarta → Dec 31 UTC)", () => {
+    expect(dateStringToTimestamp("2026-01-01", "Asia/Jakarta")).toBe("2025-12-31T17:00:00.000Z");
   });
 });
 

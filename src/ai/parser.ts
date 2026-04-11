@@ -1,6 +1,7 @@
 import { gateway, generateText, jsonSchema, Output } from "ai";
 import { ALL_CATEGORIES, ParsedMessageSchema, type ParsedMessage } from "../schemas";
 import { log as rootLog } from "../lib/logger";
+import { getCurrentDateString } from "../utils/format";
 
 const log = rootLog.child({ module: "[parser]" });
 
@@ -21,8 +22,9 @@ const PARSER_SCHEMA = jsonSchema<ParsedMessage>({
     from_pocket: { anyOf: [{ type: "string" }, { type: "null" }] },
     to_pocket: { anyOf: [{ type: "string" }, { type: "null" }] },
     confidence: { type: "number", minimum: 0, maximum: 1 },
+    date: { anyOf: [{ type: "string" }, { type: "null" }] },
   },
-  required: ["intent", "amount", "category", "note", "pocket", "from_pocket", "to_pocket", "confidence"],
+  required: ["intent", "amount", "category", "note", "pocket", "from_pocket", "to_pocket", "confidence", "date"],
   additionalProperties: false,
 });
 
@@ -47,11 +49,12 @@ function detectQueryIntent(text: string): "query" | null {
   return null;
 }
 
-function buildPrompt(text: string, activePockets: string[]): string {
+function buildPrompt(text: string, activePockets: string[], today: string): string {
   const pocketList = activePockets.length > 0 ? activePockets.join(", ") : "Main";
   return `Parse the following personal finance message and extract structured transaction data.
 
 Active pockets: ${pocketList}
+Today's date: ${today}
 
 ## IDR Amount Shorthands
 - "rb" or "ribu" = × 1,000  (e.g. "25rb" → 25000, "500rb" → 500000)
@@ -105,6 +108,14 @@ Always populate 'note' with a short description of the specific item or purpose 
 - If the message is only an amount with no description (e.g. "5k"), leave note empty
 - Keep it short: 1–4 words max
 
+## Date Extraction
+If the message contains a date reference, extract it as YYYY-MM-DD. Resolve relative dates against Today's date above.
+- "kemarin" / "yesterday" → yesterday
+- "2 hari lalu" / "2 days ago" → today minus 2 days
+- "30 maret" / "march 30" / "30/3" → that date in the current year
+- No date mentioned → null (will default to today)
+- Never output a future date.
+
 ## Confidence
 - 0.9+ → all fields clearly identified
 - 0.7–0.9 → most fields clear, minor ambiguity
@@ -128,21 +139,23 @@ Always populate 'note' with a short description of the specific item or purpose 
 
 export async function parseMessage(text: string, activePockets: string[]): Promise<ParsedMessage> {
   const precheck = detectQueryIntent(text);
+  const FALLBACK = { intent: "unknown" as const, confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null, date: null };
+
   if (precheck) {
-    return { intent: precheck, confidence: 1, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
+    return { intent: precheck, confidence: 1, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null, date: null };
   }
 
   try {
     const { output: object } = await generateText({
       model: gateway(process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5"),
       output: Output.object({ schema: PARSER_SCHEMA }),
-      prompt: buildPrompt(text, activePockets),
+      prompt: buildPrompt(text, activePockets, getCurrentDateString()),
     });
     const normalized = { ...object, amount: object.amount === 0 ? null : object.amount };
     const result = ParsedMessageSchema.safeParse(normalized);
-    return result.success ? result.data : { intent: "unknown", confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
+    return result.success ? result.data : FALLBACK;
   } catch (err) {
     log.error("generateText failed", err);
-    return { intent: "unknown", confidence: 0, amount: null, category: null, note: null, pocket: null, from_pocket: null, to_pocket: null };
+    return FALLBACK;
   }
 }

@@ -19,9 +19,7 @@ export function formatDate(isoString: string): string {
     timeZone: getTimezone(),
     day: "numeric",
     month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
+    year: "numeric",
   }).format(new Date(isoString));
 }
 
@@ -134,6 +132,44 @@ export function stripMarkdown(text: string): string {
     .replace(/_([\s\S]+?)_/g, "$1")                      // _italic_ → italic
     .replace(/\*([\s\S]+?)\*/g, "$1")                    // *italic* → italic
     .replace(/`([^`]+)`/g, "$1");                        // `code` → code
+}
+
+// ─── Date → UTC timestamp ─────────────────────────────────────────────────────
+// Converts a YYYY-MM-DD date string (in the given timezone) to a UTC ISO string
+// at midnight local time. Uses noon UTC as a reference to safely calculate the
+// timezone offset without DST-at-midnight edge cases.
+
+export function dateStringToTimestamp(dateStr: string, timezone: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+
+  // Reference point: noon UTC on that date
+  const refUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+
+  // Get the local clock time at that UTC moment
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", second: "numeric",
+    hour12: false,
+  }).formatToParts(refUtc);
+  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? "0");
+
+  // Reconstruct local time as UTC to derive the offset
+  const localAsUtc = new Date(Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second")));
+  const offsetMs = localAsUtc.getTime() - refUtc.getTime();
+
+  // Local midnight UTC = local midnight (as UTC) minus offset
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0) - offsetMs).toISOString();
+}
+
+// Returns the current date as YYYY-MM-DD in the configured timezone.
+export function getCurrentDateString(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: getTimezone(),
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 // ─── Language detection ───────────────────────────────────────────────────────

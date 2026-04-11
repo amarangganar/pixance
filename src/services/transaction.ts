@@ -1,5 +1,7 @@
 import type { ParsedMessage, Transaction } from "../schemas";
 import { appendTransaction } from "../sheets/transactions";
+import { dateStringToTimestamp } from "../utils/format";
+import { getTimezone } from "../config";
 
 // Pocket matching: exact case-insensitive; no match → first active pocket.
 function resolvePocket(name: string | null | undefined, activePockets: string[]): string {
@@ -14,7 +16,9 @@ export async function buildAndSaveTransaction(
   parsed: ParsedMessage,
   activePockets: string[]
 ): Promise<Transaction> {
-  const now = new Date().toISOString();
+  const now = parsed.date
+    ? dateStringToTimestamp(parsed.date, getTimezone())
+    : new Date().toISOString();
 
   if (parsed.intent === "transfer") {
     const txData: Omit<Transaction, "id"> = {

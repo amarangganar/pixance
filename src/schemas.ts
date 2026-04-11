@@ -76,6 +76,7 @@ export const ParsedMessageSchema = z.object({
   from_pocket: z.string().nullable().default(null),
   to_pocket: z.string().nullable().default(null),
   confidence: z.number().min(0).max(1),
+  date: z.string().nullable().default(null),
 });
 
 // ─── Telegram schemas (only fields we use) ───────────────────────────────────
