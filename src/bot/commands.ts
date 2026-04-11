@@ -261,6 +261,7 @@ async function handleStart(chatId: number, log: Logger): Promise<void> {
     "`gajian 8jt ke BCA`",
     "`freelance project 3jt`",
     "`transfer BCA ke Gopay 1jt`",
+    "`hapus kopi 25rb tadi`",
     "",
     `*Active pockets:* ${pocketList}`,
   ].join("\n");
