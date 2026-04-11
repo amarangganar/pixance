@@ -289,7 +289,13 @@ async function handlePockets(chatId: number, args: string[], log: Logger): Promi
 
     const list = formatPocketList(pockets, showAll, balanceMap);
     const header = showAll ? "*All pockets:*" : "*Active pockets:*";
-    await sendMessage(chatId, `${header}\n${list}`, { parse_mode: "Markdown" });
+
+    const activeTotal = pockets
+      .filter((p) => p.status === "active")
+      .reduce((sum, p) => sum + (balanceMap.get(p.name) ?? 0), 0);
+    const totalLine = `\n\n*Total: ${formatCurrency(activeTotal)}*`;
+
+    await sendMessage(chatId, `${header}\n${list}${totalLine}`, { parse_mode: "Markdown" });
   } catch (err) {
     log.error("handler failed", err, { command: "/pockets" });
     await sendMessage(chatId, `❌ Failed to fetch pockets: ${String(err)}`);
