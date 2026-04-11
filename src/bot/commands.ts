@@ -1,7 +1,5 @@
 import type { Pocket, Transaction } from "../schemas";
-import { getAdvice, getQuickSummary } from "../ai/advisor";
 import type { Logger } from "../lib/logger";
-import { buildFinancialContext } from "../services/analytics";
 import {
   addPocket,
   archivePocket,
@@ -14,7 +12,6 @@ import { deleteTransaction, getAllTransactions, getRecentTransactions } from "..
 import { getCurrentMonthYear, isInMonth, isInWeek, isToday, formatCurrency } from "../utils/format";
 import { formatDeleteConfirmation, formatHistory, formatReport, type ReportData } from "./format";
 import { deleteMessage, sendMessage } from "./telegram";
-import { stripMarkdown, toTelegramMarkdownV2 } from "../utils/format";
 
 // ─── Argument parsing ─────────────────────────────────────────────────────────
 
@@ -99,8 +96,6 @@ export async function handleCommand(chatId: number, text: string, log: Logger): 
       return handleRestorePocket(chatId, args, log);
     case "/delete":
       return handleDelete(chatId, args, log);
-    case "/advice":
-      return handleAdvice(chatId, args, log);
     default:
       await sendMessage(chatId, "Unknown command. Use /start to see available commands.");
   }
@@ -259,7 +254,6 @@ async function handleStart(chatId: number, log: Logger): Promise<void> {
     "/archivepocket [name] — archive a pocket",
     "/restorepocket [name] — restore archived pocket",
     "/delete [n] — delete nth entry from /history",
-    "/advice — AI financial advice",
     "",
     "*Examples:*",
     "`kopi 25rb pake gopay`",
@@ -267,8 +261,6 @@ async function handleStart(chatId: number, log: Logger): Promise<void> {
     "`gajian 8jt ke BCA`",
     "`freelance project 3jt`",
     "`transfer BCA ke Gopay 1jt`",
-    "`gimana kondisi keuangan aku bulan ini?`",
-    "`how's my spending this month?`",
     "",
     `*Active pockets:* ${pocketList}`,
   ].join("\n");
@@ -389,30 +381,6 @@ async function handleRestorePocket(chatId: number, args: string[], log: Logger):
     log.error("handler failed", err, { command: "/restorepocket", name });
     const msg = err instanceof Error ? err.message : "Failed to restore pocket";
     await sendMessage(chatId, `❌ ${msg}`);
-  }
-}
-
-// ─── /advice ──────────────────────────────────────────────────────────────────
-
-async function handleAdvice(chatId: number, args: string[], log: Logger): Promise<void> {
-  const lang: "id" | "en" = args[0]?.toLowerCase() === "id" ? "id" : "en";
-  const { month, year } = getCurrentMonthYear();
-  const placeholder = lang === "id" ? "⏳ Menganalisis keuangan kamu..." : "⏳ Analyzing your finances...";
-  const { message_id: placeholderId } = await sendMessage(chatId, placeholder);
-
-  try {
-    const ctx = await buildFinancialContext(lang, month, year);
-    const advice = await getQuickSummary(ctx);
-    await deleteMessage(chatId, placeholderId).catch(() => {});
-    try {
-      await sendMessage(chatId, toTelegramMarkdownV2(advice), { parse_mode: "MarkdownV2" });
-    } catch {
-      await sendMessage(chatId, stripMarkdown(advice));
-    }
-  } catch (err) {
-    log.error("handler failed", err, { command: "/advice" });
-    await deleteMessage(chatId, placeholderId).catch(() => {});
-    await sendMessage(chatId, `❌ Failed to fetch financial analysis: ${String(err)}`);
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { stripMarkdown, toTelegramMarkdownV2 } from "../format";
+import { detectLanguage, stripMarkdown, toTelegramMarkdownV2 } from "../format";
 
 describe("toTelegramMarkdownV2 — plain text escaping", () => {
   test("escapes period", () => {
@@ -137,5 +137,35 @@ describe("stripMarkdown", () => {
 
   test("empty string returns empty string", () => {
     expect(stripMarkdown("")).toBe("");
+  });
+});
+
+// ─── detectLanguage ───────────────────────────────────────────────────────────
+
+describe("detectLanguage", () => {
+  test("detects Indonesian from rb shorthand", () => {
+    expect(detectLanguage("kopi 25rb")).toBe("id");
+  });
+
+  test("detects Indonesian from jt shorthand", () => {
+    expect(detectLanguage("gajian 8jt")).toBe("id");
+  });
+
+  test("detects Indonesian from common words", () => {
+    expect(detectLanguage("makan siang pake gopay")).toBe("id");
+    expect(detectLanguage("bayar listrik bulan ini")).toBe("id");
+    expect(detectLanguage("transfer dari BCA ke Gopay")).toBe("id");
+    expect(detectLanguage("gimana kondisi keuangan aku")).toBe("id");
+    expect(detectLanguage("hapus transaksi tadi")).toBe("id");
+  });
+
+  test("detects English from English-only text", () => {
+    expect(detectLanguage("coffee 25000")).toBe("en");
+    expect(detectLanguage("salary received")).toBe("en");
+  });
+
+  test("defaults to id for empty or number-only input", () => {
+    expect(detectLanguage("")).toBe("id");
+    expect(detectLanguage("25000")).toBe("id");
   });
 });

@@ -55,7 +55,6 @@ export async function setMyCommands(): Promise<void> {
       { command: "archivepocket", description: "Archive a pocket" },
       { command: "restorepocket", description: "Restore an archived pocket" },
       { command: "delete", description: "Delete a recent transaction" },
-      { command: "advice", description: "AI-powered financial advice" },
     ],
   });
 }

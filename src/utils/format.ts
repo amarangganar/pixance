@@ -136,6 +136,46 @@ export function stripMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, "$1");                        // `code` → code
 }
 
+// ─── Language detection ───────────────────────────────────────────────────────
+// 1+ matches against Indonesian patterns → "id". Otherwise → "en".
+// Empty/numbers-only/punctuation-only → defaults to "id".
+
+const ID_PATTERNS = [
+  /\d+rb\b/,
+  /\d+jt\b/,
+  /\bribu\b/,
+  /\bjuta\b/,
+  /\baku\b/,
+  /\bsaya\b/,
+  /\bgue\b/,
+  /\bgw\b/,
+  /\bmakan\b/,
+  /\bbayar\b/,
+  /\bgimana\b/,
+  /\bbagaimana\b/,
+  /\bpake\b/,
+  /\bdari\b/,
+  /\bke\b/,
+  /\bpindahin\b/,
+  /\btransfer\b/,
+  /\bdi\b/,
+  /\byang\b/,
+  /\bdan\b/,
+  /\bhapus\b/,
+  /\bcatat\b/,
+  /\bmasuk\b/,
+  /\bkeluar\b/,
+  /\bbulan\b/,
+  /\bhari\b/,
+  /\btadi\b/,
+];
+
+export function detectLanguage(text: string): "id" | "en" {
+  if (!text || !/[a-zA-Z]/.test(text)) return "id";
+  const lower = text.toLowerCase();
+  return ID_PATTERNS.some((p) => p.test(lower)) ? "id" : "en";
+}
+
 // ─── Progress bar ─────────────────────────────────────────────────────────────
 
 export function progressBar(used: number, total: number, length = 10): string {

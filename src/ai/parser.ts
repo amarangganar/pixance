@@ -12,7 +12,7 @@ const PARSER_SCHEMA = jsonSchema<ParsedMessage>({
   properties: {
     intent: {
       type: "string",
-      enum: ["income", "expense", "transfer", "query", "advice", "delete", "unknown"],
+      enum: ["income", "expense", "transfer", "query", "delete", "unknown"],
     },
     amount: { anyOf: [{ type: "number", exclusiveMinimum: 0 }, { type: "null" }] },
     category: { anyOf: [{ type: "string", enum: [...ALL_CATEGORIES] }, { type: "null" }] },
@@ -27,26 +27,22 @@ const PARSER_SCHEMA = jsonSchema<ParsedMessage>({
 });
 
 // ─── Keyword pre-check ───────────────────────────────────────────────────────
-// Short-circuit to query/advice without an AI call when the message clearly
-// contains no amount and matches known intent keywords.
+// Short-circuit to query without an AI call when the message clearly
+// contains no amount and matches known query keywords.
 
 const AMOUNT_PATTERN = /\d+(rb|ribu|jt|juta|mio|k)\b|\d{3,}/i;
-
-const ADVICE_KEYWORDS = [
-  /\bsaran\b/, /\badvice\b/, /\bsuggest\b/, /\brekomendasi\b/, /\btips\b/,
-];
 
 const QUERY_KEYWORDS = [
   /\bgimana\b/, /\bbagaimana\b/, /\bberapa\b/, /\bhow\b/, /\bshow\b/,
   /\blaporan\b/, /\breport\b/, /\bkondisi\b/, /\bpengeluaran\b/,
   /\bpemasukan\b/, /\bsummary\b/, /\bringkasan\b/, /\banalisis\b/,
   /\banalyze\b/, /\banalisa\b/, /\bbulan ini\b/, /\bthis month\b/,
+  /\bsaran\b/, /\badvice\b/, /\bsuggest\b/, /\brekomendasi\b/, /\btips\b/,
 ];
 
-function detectQueryIntent(text: string): "query" | "advice" | null {
+function detectQueryIntent(text: string): "query" | null {
   if (AMOUNT_PATTERN.test(text)) return null;
   const lower = text.toLowerCase();
-  if (ADVICE_KEYWORDS.some((p) => p.test(lower))) return "advice";
   if (QUERY_KEYWORDS.some((p) => p.test(lower))) return "query";
   return null;
 }
@@ -74,8 +70,7 @@ Match pocket name from the active pockets list (case-insensitive, exact match).
 - income: receiving money ("gajian", "dapat duit", "salary", "terima", "tambah ke [pocket]", "add to [pocket]", "add [amount] to [pocket]"). Rule: "tambah/add X ke/to [single pocket]" with NO source pocket mentioned → income, NOT transfer.
 - expense: spending money ("beli", "makan", "bayar", "kopi", default for ambiguous spending)
 - transfer: moving money between pockets ("transfer X ke Y", "top up Y dari X", "pindahin X ke Y"). Requires TWO pockets (source and destination). "tambah/add ke [single pocket]" is NOT a transfer.
-- query: asking about finances without recording ("gimana", "berapa", "how", "show me", "laporan", "report")
-- advice: asking for financial advice ("saran", "advice", "suggest")
+- query: asking about finances without recording, or asking for advice ("gimana", "berapa", "how", "show me", "saran", "advice")
 - delete: deleting a transaction ("hapus", "delete", "batalin")
 - unknown: none of the above
 

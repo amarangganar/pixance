@@ -66,7 +66,7 @@ export const TransactionSchema = z.discriminatedUnion("type", [
 // ─── Parsed message schema ───────────────────────────────────────────────────
 
 export const ParsedMessageSchema = z.object({
-  intent: z.enum(["income", "expense", "transfer", "query", "advice", "delete", "unknown"]),
+  intent: z.enum(["income", "expense", "transfer", "query", "delete", "unknown"]),
   amount: z.number().positive().nullable().default(null),
   category: z.enum(ALL_CATEGORIES).nullable().default(null),
   note: z.string().nullable().default(null),

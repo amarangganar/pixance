@@ -1,11 +1,9 @@
-import { detectLanguage, getAdvice } from "../ai/advisor";
 import { parseMessage } from "../ai/parser";
 import type { Logger } from "../lib/logger";
-import { buildFinancialContext } from "../services/analytics";
 import { buildAndSaveTransaction } from "../services/transaction";
 import { getActivePocketNames } from "../sheets/pockets";
 import { deleteTransaction, findMatchingTransactions, getLastNDaysTransactions } from "../sheets/transactions";
-import { getCurrentMonthYear, formatCurrency, formatDate, toTelegramMarkdownV2, stripMarkdown } from "../utils/format";
+import { detectLanguage, formatCurrency, formatDate } from "../utils/format";
 import { deleteMessage, sendMessage } from "./telegram";
 import { formatConfirmation, formatDeleteCandidates, formatDeleteConfirmation } from "./format";
 
@@ -26,9 +24,6 @@ const HELP_ID = `Ketik transaksi kamu dalam bahasa natural, contoh:
 \`transfer BCA ke Gopay 1jt\`
 \`hapus kopi 25rb tadi\`
 
-Atau tanya soal keuangan kamu:
-\`gimana kondisi keuangan aku bulan ini?\`
-
 Gunakan /start untuk melihat semua perintah.`;
 
 const HELP_EN = `Type your transactions in natural language, e.g.:
@@ -36,9 +31,6 @@ const HELP_EN = `Type your transactions in natural language, e.g.:
 \`gajian 8jt ke BCA\`
 \`transfer BCA ke Gopay 1jt\`
 \`hapus kopi 25rb tadi\`
-
-Or ask about your finances:
-\`how's my spending this month?\`
 
 Use /start to see all available commands.`;
 
@@ -137,18 +129,6 @@ export async function handleMessage(chatId: number, text: string, log: Logger): 
       const candidates = matches.map((tx) => ({ id: tx.id, summary: summarizeTx(tx) }));
       pendingDeletes.set(chatId, { candidates, lang });
       await sendMessage(chatId, formatDeleteCandidates(candidates, lang), {});
-      return;
-    }
-
-    if (parsed.intent === "query" || parsed.intent === "advice") {
-      const { month, year } = getCurrentMonthYear();
-      const ctx = await buildFinancialContext(lang, month, year);
-      const advice = await getAdvice(text, ctx);
-      try {
-        await sendMessage(chatId, toTelegramMarkdownV2(advice), { parse_mode: "MarkdownV2" });
-      } catch {
-        await sendMessage(chatId, stripMarkdown(advice));
-      }
       return;
     }
 
