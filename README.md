@@ -10,7 +10,7 @@ A personal finance Telegram bot that logs cashflow via natural language and stor
 
 - **Natural language input** — just message the bot like you're texting a friend
 - **Bilingual** — auto-detects Indonesian and English per message
-- **AI-powered advice** — monthly financial summary and spending analysis via Claude
+- **Backdate support** — log past transactions with relative ("kemarin") or absolute ("30 maret") dates
 - **Pocket management** — categorize money across accounts, wallets, or e-wallets
 - **Google Sheets as dashboard** — your data lives in a spreadsheet you can see, edit, and export
 - **No balance tracking** — cashflow-first: income, expenses, and transfers only
@@ -188,27 +188,30 @@ bun start  # without hot reload
 | Command | Description |
 |---|---|
 | `/start` | Show help and active pockets |
-| `/report [lang]` | Monthly financial summary (`lang`: `id` or `en`) |
+| `/report [today\|week\|month] [lang]` | Financial summary for the given period (`lang`: `id` or `en`, default: today) |
 | `/history [lang]` | Last 10 transactions |
-| `/pockets` | List active pockets |
+| `/pockets` | List active pockets with balances and total |
 | `/pockets all` | List all pockets including archived |
 | `/addpocket <name>` | Create a new pocket |
 | `/renamepocket <old> <new>` | Rename a pocket (use quotes for names with spaces) |
 | `/archivepocket <name>` | Archive a pocket |
 | `/restorepocket <name>` | Restore an archived pocket |
 | `/delete <n>` | Delete the nth most recent transaction |
-| `/advice [lang]` | AI-powered financial advice for the current month |
 
 ### Natural language
 
 Just send a message — the bot figures out the rest:
 
 ```
-kopi 25rb pake gopay          → expense: coffee, 25k, Gopay pocket
-gajian 8jt ke BCA             → income: salary, 8M, BCA pocket
-transfer BCA ke Gopay 1jt     → transfer: 1M from BCA to Gopay
-gimana kondisi keuangan aku?  → triggers financial advisor (Indonesian)
-how's my spending this month? → triggers financial advisor (English)
+kopi 25rb pake gopay              → expense: Food & Drinks, 25k, Gopay
+gajian 8jt ke BCA                 → income: Salary, 8M, BCA
+transfer BCA ke Gopay 1jt         → transfer: 1M from BCA to Gopay
+kasih uang 200rb ke Budi          → expense: Gift Given, 200k
+pinjemin 500rb ke Andi            → expense: Loan Given, 500k
+kopi 25rb kemarin                 → expense logged with yesterday's date
+makan siang 50rb 2 hari lalu      → expense logged 2 days ago
+beli bensin 30 maret              → expense logged on March 30
+hapus kopi 25rb tadi              → finds and deletes matching transaction
 ```
 
 ---
