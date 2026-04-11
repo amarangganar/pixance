@@ -14,13 +14,13 @@ export function formatConfirmation(tx: Transaction, lang: "id" | "en"): string {
   if (tx.type === "income") {
     const header = lang === "id" ? "✅ Pemasukan dicatat" : "✅ Income recorded";
     const note = tx.note ? ` · ${tx.note}` : "";
-    return `${header}\n💰 ${amount} · ${tx.category}${note} · ${date}`;
+    return `${header}\n💰 ${amount} · ${tx.category} · ${tx.pocket}${note} · ${date}`;
   }
 
   // expense
   const header = lang === "id" ? "✅ Pengeluaran dicatat" : "✅ Expense recorded";
   const note = tx.note ? ` · ${tx.note}` : "";
-  return `${header}\n💸 ${amount} · ${tx.category}${note} · ${date}`;
+  return `${header}\n💸 ${amount} · ${tx.category} · ${tx.pocket}${note} · ${date}`;
 }
 
 // ─── Report data type ─────────────────────────────────────────────────────────
@@ -104,12 +104,12 @@ export function formatDeleteConfirmation(tx: Transaction, lang: "id" | "en"): st
   if (tx.type === "income") {
     const header = lang === "id" ? "✅ Pemasukan dihapus" : "✅ Income deleted";
     const note = tx.note ? ` · ${tx.note}` : "";
-    return `${header}\n💰 ${amount} · ${tx.category}${note} · ${date}`;
+    return `${header}\n💰 ${amount} · ${tx.category} · ${tx.pocket}${note} · ${date}`;
   }
 
   const header = lang === "id" ? "✅ Pengeluaran dihapus" : "✅ Expense deleted";
   const note = tx.note ? ` · ${tx.note}` : "";
-  return `${header}\n💸 ${amount} · ${tx.category}${note} · ${date}`;
+  return `${header}\n💸 ${amount} · ${tx.category} · ${tx.pocket}${note} · ${date}`;
 }
 
 export function formatDeleteCandidates(
@@ -149,10 +149,10 @@ export function formatHistory(txs: Transaction[], lang: "id" | "en" = "en"): str
       lines.push(`${n}. 🔄 ${amount} · ${tx.from_pocket} → ${tx.to_pocket}${note} · ${date}`);
     } else if (tx.type === "income") {
       const note = tx.note ? ` · ${tx.note}` : "";
-      lines.push(`${n}. 💰 ${amount} · ${tx.category}${note} · ${date}`);
+      lines.push(`${n}. 💰 ${amount} · ${tx.category} · ${tx.pocket}${note} · ${date}`);
     } else {
       const note = tx.note ? ` · ${tx.note}` : "";
-      lines.push(`${n}. 💸 ${amount} · ${tx.category}${note} · ${date}`);
+      lines.push(`${n}. 💸 ${amount} · ${tx.category} · ${tx.pocket}${note} · ${date}`);
     }
   });
 
